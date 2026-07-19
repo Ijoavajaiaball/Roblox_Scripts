@@ -67,7 +67,7 @@ TopTitle.BackgroundTransparency = 1
 TopTitle.Parent = TopBar
 
 local TopStats = Instance.new("TextLabel")
-TopStats.Text = "FPS: 60  |  PING: 45ms  |  VER: v2.4b"
+TopStats.Text = "FPS: 60  |  PING: 45ms  |  VER: v2.5b"
 TopStats.Size = UDim2.new(0, 200, 1, 0)
 TopStats.Position = UDim2.new(1, -210, 0, 0)
 TopStats.TextColor3 = Color3.fromRGB(120, 30, 30)
@@ -343,10 +343,9 @@ end
 for _, p in pairs(Players:GetPlayers()) do addEsp(p) end
 Players.PlayerAdded:Connect(addEsp)
 
--- Debounce flag to protect firing rates on mobile hardware loops
+-- Hardware Independent Execution Engine (Native Tool Activation Method)
 local isFiring = false
 
--- Core Render Update Loop
 RunService.RenderStepped:Connect(function()
     local centerScreen = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
     FovCircle.Position = centerScreen
@@ -360,7 +359,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
     
-    -- Handle Auto Shoot Mobile Native Injection
+    -- Handle Code-Injected Auto Shoot
     if Config.AutoShootEnabled and not isFiring and Mouse.Target then
         local hitObject = Mouse.Target
         local character = hitObject:FindFirstAncestorOfClass("Model")
@@ -368,22 +367,22 @@ RunService.RenderStepped:Connect(function()
         if character and character:FindFirstChild("Humanoid") and character ~= LocalPlayer.Character then
             local targetPlayer = Players:GetPlayerFromCharacter(character)
             if targetPlayer and character:FindFirstChild("Head") and isVisible(character) then
-                isFiring = true
+                -- Locate currently equipped gun tool inside your avatar character
+                local equippedTool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
                 
-                -- Construct Touch Tap Input Object
-                local touchObj = Instance.new("InputObject")
-                touchObj.UserInputType = Enum.UserInputType.Touch
-                touchObj.UserInputState = Enum.UserInputState.Begin
-                touchObj.Position = Vector3.new(centerScreen.X, centerScreen.Y, 0)
-                
-                -- Fire Mobile Tap State Channels
-                UserInputService:InputBegan:Fire(touchObj, false)
-                task.wait(0.03) -- Clean hardware release frame
-                touchObj.UserInputState = Enum.UserInputState.End
-                UserInputService:InputEnded:Fire(touchObj, false)
-                
-                task.wait(0.1) -- Cooldown to match game cycle speeds
-                isFiring = false
+                if equippedTool then
+                    isFiring = true
+                    
+                    -- Trigger tool action directly via script injection bypass
+                    equippedTool:Activate()
+                    
+                    -- Use alternative click simulation block as a backup redundancy
+                    local virtualUser = game:GetService("VirtualUser")
+                    virtualUser:ClickButton1(Vector2.new(centerScreen.X, centerScreen.Y))
+                    
+                    task.wait(0.12) -- Prevent engine rate-limit lockouts
+                    isFiring = false
+                end
             end
         end
     end
