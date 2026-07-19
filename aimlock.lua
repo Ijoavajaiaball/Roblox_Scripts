@@ -34,6 +34,7 @@ Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 Frame.BorderSizePixel = 0
 Frame.Active = true
 Frame.Draggable = true
+Frame.Parent = Frame.Parent -- Temporary assignment to fix layout order dependencies
 Frame.Parent = ScreenGui
 
 local UICorner = Instance.new("UICorner")
@@ -209,10 +210,12 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 Players.PlayerAdded:Connect(addEsp)
 
--- Loop to update FOV Visual and Aimbot Prep
+-- Fixed Screen-Center Loop
 RunService.RenderStepped:Connect(function()
-    FovCircle.Position = UserInputService:GetMouseLocation()
-    -- Multiplied by 4 so a 1-100 slider translates cleanly to viewport scale pixels
+    -- Dynamically updates the center position based on current screen dimensions
+    local viewportSize = Camera.ViewportSize
+    FovCircle.Position = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+    
+    -- Multiplier scales the 1-100 values nicely to actual screen pixels
     FovCircle.Radius = Config.FovRadius * 4 
 end)
-
