@@ -5,18 +5,166 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
+-- Configuration Variables
+local Config = {
+    AimbotEnabled = false,
+    FovRadius = 50, -- Default FOV (1-100 scale)
+    EspEnabled = false
+}
+
+-- FOV Circle Visual
+local FovCircle = Drawing.new("Circle")
+FovCircle.Color = Color3.fromRGB(0, 255, 137)
+FovCircle.Thickness = 1.5
+FovCircle.NumSides = 64
+FovCircle.Filled = false
+FovCircle.Visible = false
+
 -- UI Container
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MobilePcAimSandbox"
+ScreenGui.Name = "TitaniumHubGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- 1. Mobile Open/Close Toggle Button
+-- Main Menu Frame
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 240, 0, 320)
+Frame.Position = UDim2.new(0.05, 0, 0.25, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+Frame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = Frame
+
+-- Title Label
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Text = "Titanium Hub"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 18
+Title.Font = Enum.Font.SourceSansBold
+Title.BackgroundTransparency = 1
+Title.Parent = Frame
+
+-- UI Padding for Content
+local ContentLayout = Instance.new("UIListLayout")
+ContentLayout.Parent = Frame
+ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ContentLayout.Padding = UDim.new(0, 10)
+
+local UIPadding = Instance.new("UIPadding")
+UIPadding.PaddingTop = UDim.new(0, 50)
+UIPadding.PaddingLeft = UDim.new(0, 15)
+UIPadding.PaddingRight = UDim.new(0, 15)
+UIPadding.Parent = Frame
+
+-- Toggle Button Creator Function
+local function createToggle(text, callback)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, 0, 0, 35)
+    button.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+    button.Text = text .. ": OFF"
+    button.TextColor3 = Color3.fromRGB(180, 180, 180)
+    button.Font = Enum.Font.SourceSans
+    button.TextSize = 14
+    button.BorderSizePixel = 0
+    button.Parent = Frame
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = button
+    
+    local state = false
+    button.MouseButton1Click:Connect(function()
+        state = not state
+        if state then
+            button.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+            button.TextColor3 = Color3.fromRGB(255, 255, 255)
+            button.Text = text .. ": ON"
+        else
+            button.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+            button.TextColor3 = Color3.fromRGB(180, 180, 180)
+            button.Text = text .. ": OFF"
+        end
+        callback(state)
+    end)
+end
+
+-- Create Menu Options
+createToggle("Aimbot Lock", function(state)
+    Config.AimbotEnabled = state
+    FovCircle.Visible = state
+end)
+
+createToggle("Player ESP", function(state)
+    Config.EspEnabled = state
+end)
+
+-- FOV Slider Elements
+local SliderLabel = Instance.new("TextLabel")
+SliderLabel.Size = UDim2.new(1, 0, 0, 20)
+SliderLabel.Text = "FOV Radius: " .. Config.FovRadius
+SliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+SliderLabel.BackgroundTransparency = 1
+SliderLabel.Font = Enum.Font.SourceSans
+SliderLabel.TextSize = 14
+SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+SliderLabel.Parent = Frame
+
+local SliderBg = Instance.new("TextButton")
+SliderBg.Size = UDim2.new(1, 0, 0, 10)
+SliderBg.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+SliderBg.Text = ""
+SliderBg.BorderSizePixel = 0
+SliderBg.Parent = Frame
+
+local SliderFill = Instance.new("Frame")
+SliderFill.Size = UDim2.new(Config.FovRadius / 100, 0, 1, 0)
+SliderFill.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+SliderFill.BorderSizePixel = 0
+SliderFill.Parent = SliderBg
+
+-- Slider Functionality (1-100 adjustment)
+local function updateSlider(input)
+    local relativeX = input.Position.X - SliderBg.AbsolutePosition.X
+    local percentage = math.clamp(relativeX / SliderBg.AbsoluteSize.X, 0, 1)
+    Config.FovRadius = math.round(percentage * 100)
+    if Config.FovRadius < 1 then Config.FovRadius = 1 end
+    
+    SliderFill.Size = UDim2.new(percentage, 0, 1, 0)
+    SliderLabel.Text = "FOV Radius: " .. Config.FovRadius
+end
+
+local sliding = false
+SliderBg.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        sliding = true
+        updateSlider(input)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateSlider(input)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        sliding = false
+    end
+end)
+
+-- Mobile Open/Close Button
 local MenuToggleBtn = Instance.new("TextButton")
 MenuToggleBtn.Size = UDim2.new(0, 100, 0, 35)
-MenuToggleBtn.Position = UDim2.new(0.5, -50, 0, 10) -- Center top of screen
+MenuToggleBtn.Position = UDim2.new(0.5, -50, 0, 10)
 MenuToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-MenuToggleBtn.Text = "Toggle Menu"
+MenuToggleBtn.Text = "Titanium Hub"
 MenuToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 MenuToggleBtn.Font = Enum.Font.SourceSansBold
 MenuToggleBtn.TextSize = 14
@@ -26,269 +174,45 @@ local ToggleCorner = Instance.new("UICorner")
 ToggleCorner.CornerRadius = UDim.new(0, 6)
 ToggleCorner.Parent = MenuToggleBtn
 
--- Main Menu Frame
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 220, 0, 280)
-Frame.Position = UDim2.new(0.05, 0, 0.25, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-Frame.BorderSizePixel = 0
-Frame.Active = true
-Frame.Draggable = true -- PC drag helper
-Frame.Parent = ScreenGui
-
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = Frame
-
--- Simple Mobile Drag Handling (Draggable property can be buggy on mobile)
-local dragToggle, dragStart, startPos
-Frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragToggle = true
-        dragStart = input.Position
-        startPos = Frame.Position
-    end
-end)
-Frame.InputChanged:Connect(function(input)
-    if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) and dragToggle then
-        local delta = input.Position - dragStart
-        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragToggle = false
-    end
-end)
-
--- Connect Open/Close functionality
 MenuToggleBtn.MouseButton1Click:Connect(function()
     Frame.Visible = not Frame.Visible
 end)
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "Titanium Hub"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 16
-Title.Font = Enum.Font.SourceSansBold
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.BackgroundTransparency = 1
-Title.Parent = Frame
-
-local UIPadding = Instance.new("UIPadding")
-UIPadding.PaddingLeft = UDim.new(0, 15)
-UIPadding.Parent = Title
-
--- Helper function to create clean toggle buttons
-local function createToggleButton(text, position, defaultState)
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -20, 0, 35)
-    button.Position = position
-    button.Font = Enum.Font.SourceSans
-    button.TextSize = 14
-    button.BorderSizePixel = 0
-    button.Parent = Frame
+-- ESP Logic (High-Performance Highlights)
+local function addEsp(player)
+    if player == LocalPlayer then return end
     
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = button
-
-    local state = defaultState
-    local function updateVisuals()
-        if state then
-            button.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-            button.Text = text .. ": ON"
-            button.TextColor3 = Color3.fromRGB(255, 255, 255)
-        else
-            button.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-            button.Text = text .. ": OFF"
-            button.TextColor3 = Color3.fromRGB(180, 180, 180)
-        end
-    end
-    
-    updateVisuals()
-    
-    button.MouseButton1Click:Connect(function()
-        state = not state
-        updateVisuals()
-    end)
-    
-    return function() return state end
-end
-
--- Feature Toggles
-local isAimEnabled = createToggleButton("Master Aim Lock", UDim2.new(0, 10, 0, 50), false)
-local isWallCheckEnabled = createToggleButton("Wall Check", UDim2.new(0, 10, 0, 95), true)
-local isFovVisible = createToggleButton("Show FOV Circle", UDim2.new(0, 10, 0, 140), true)
-local isTargetLockEnabled = createToggleButton("Target Lock", UDim2.new(0, 10, 0, 185), false)
-
-local InfoLabel = Instance.new("TextLabel")
-InfoLabel.Size = UDim2.new(1, -20, 0, 40)
-InfoLabel.Position = UDim2.new(0, 10, 0, 230)
-InfoLabel.Text = "PC: [R-Click] Lock | [Q] Swap | [L] UI\nMobile: Screen Center Target Detection"
-InfoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-InfoLabel.TextSize = 11
-InfoLabel.Font = Enum.Font.SourceSansItalic
-InfoLabel.BackgroundTransparency = 1
-InfoLabel.Parent = Frame
-
--- 2. Fixed Center Screen FOV Circle
-local FOVFrame = Instance.new("Frame")
-FOVFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-FOVFrame.Position = UDim2.new(0.5, 0, 0.5, 0) -- Locked perfectly to middle of screen
-FOVFrame.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
-FOVFrame.BackgroundTransparency = 0.92
-FOVFrame.BorderSizePixel = 0
-FOVFrame.Visible = false
-FOVFrame.Parent = ScreenGui
-
-local FOVStroke = Instance.new("UIStroke")
-FOVStroke.Color = Color3.fromRGB(255, 85, 85)
-FOVStroke.Thickness = 1.5
-FOVStroke.Transparency = 0.4
-FOVStroke.Parent = FOVFrame
-
-local FOVCorner = Instance.new("UICorner")
-FOVCorner.CornerRadius = UDim.new(1, 0)
-FOVCorner.Parent = FOVFrame
-
--- Configuration Settings
-local PC_AIM_KEY = Enum.UserInputType.MouseButton2
-local TOGGLE_UI_KEY = Enum.KeyCode.L
-local SWITCH_TARGET_KEY = Enum.KeyCode.Q
-local FOV_RADIUS = 130
-local SMOOTHNESS = 3 -- Lower numbers make it snap / lock much faster
-
--- State tracking variables
-local isAimingPressed = false
-local currentTarget = nil
-local blacklistedTargets = {}
-
--- Check if device is mobile
-local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-
--- Wall check calculations via Raycasting
-local function isVisible(targetPart)
-    if not isWallCheckEnabled() then return true end
-    
-    local origin = Camera.CFrame.Position
-    local direction = targetPart.Position - origin
-    
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, targetPart.Parent}
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    
-    local raycastResult = workspace:Raycast(origin, direction, raycastParams)
-    return raycastResult == nil
-end
-
--- Screen coordinates helper
-local function getScreenCenter()
-    return Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-end
-
--- Target checking loop
-local function getClosestTarget()
-    -- Maintain existing target lock if enabled
-    if isTargetLockEnabled() and currentTarget and currentTarget.Parent and currentTarget.Parent:FindFirstChild("Humanoid") and currentTarget.Parent.Humanoid.Health > 0 then
-        if isVisible(currentTarget) then
-            local screenPos, onScreen = Camera:WorldToViewportPoint(currentTarget.Position)
-            if onScreen then
-                local center = getScreenCenter()
-                local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                if distance <= FOV_RADIUS then
-                    return currentTarget
-                end
-            end
-        end
-    end
-
-    local closestPart = nil
-    local shortestDistance = FOV_RADIUS
-    local center = getScreenCenter()
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local humanoid = player.Character:FindFirstChild("Humanoid")
-            local rootPart = player.Character.HumanoidRootPart
-            
-            if humanoid and humanoid.Health > 0 and not blacklistedTargets[player] then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-                
-                if onScreen then
-                    -- Measure distance from center of the screen
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                    
-                    if distance < shortestDistance then
-                        if isVisible(rootPart) then
-                            shortestDistance = distance
-                            closestPart = rootPart
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    return closestPart
-end
-
--- PC Keyboard Inputs
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.UserInputType == PC_AIM_KEY then
-        isAimingPressed = true
-    elseif input.KeyCode == TOGGLE_UI_KEY then
-        Frame.Visible = not Frame.Visible
-    elseif input.KeyCode == SWITCH_TARGET_KEY and isAimEnabled() then
-        if currentTarget and currentTarget.Parent then
-            local targetPlayer = Players:GetPlayerFromCharacter(currentTarget.Parent)
-            if targetPlayer then
-                blacklistedTargets[targetPlayer] = true
-                currentTarget = getClosestTarget()
-                task.delay(0.2, function() blacklistedTargets[targetPlayer] = nil end)
-            end
-        end
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == PC_AIM_KEY then
-        isAimingPressed = false
-        if not isTargetLockEnabled() then currentTarget = nil end
-    end
-end)
-
--- Main rendering loop
-RunService.RenderStepped:Connect(function()
-    -- Set size and display of stabilized center FOV Circle
-    local diameter = FOV_RADIUS * 2
-    FOVFrame.Size = UDim2.new(0, diameter, 0, diameter)
-    FOVFrame.Visible = isFovVisible()
-    
-    -- Mobile treats aim lock as constantly active if Master Switch is ON
-    -- PC uses the mouse right-click hold logic
-    local shouldLock = false
-    if isAimEnabled() then
-        if isMobile then
-            shouldLock = true
-        elseif isAimingPressed then
-            shouldLock = true
-        end
-    end
-    
-    if shouldLock then
-        currentTarget = getClosestTarget()
+    local function applyHighlight(character)
+        if character:FindFirstChild("EspHighlight") then return end
         
-        if currentTarget then
-            -- Absolute CFrame Lock: Forces camera direction without input dependency
-            local targetLook = CFrame.new(Camera.CFrame.Position, currentTarget.Position)
-            Camera.CFrame = Camera.CFrame:Lerp(targetLook, 1 / SMOOTHNESS)
-        end
-    else
-        if not isAimingPressed then
-            currentTarget = nil
-        end
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "EspHighlight"
+        highlight.FillColor = Color3.fromRGB(255, 0, 0)
+        highlight.FillTransparency = 0.6
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.OutlineTransparency = 0
+        highlight.Adornee = character
+        highlight.Parent = character
+        
+        -- Instantly hides highlight if config option is toggled off
+        RunService.RenderStepped:Connect(function()
+            highlight.Enabled = Config.EspEnabled and character:FindFirstChild("HumanoidRootPart") ~= nil
+        end)
     end
+    
+    if player.Character then applyHighlight(player.Character) end
+    player.CharacterAdded:Connect(applyHighlight)
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+    addEsp(player)
+end
+Players.PlayerAdded:Connect(addEsp)
+
+-- Loop to update FOV Visual and Aimbot Prep
+RunService.RenderStepped:Connect(function()
+    FovCircle.Position = UserInputService:GetMouseLocation()
+    -- Multiplied by 4 so a 1-100 slider translates cleanly to viewport scale pixels
+    FovCircle.Radius = Config.FovRadius * 4 
 end)
+
