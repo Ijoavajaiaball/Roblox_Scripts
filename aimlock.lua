@@ -4,20 +4,22 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
 
--- CLEANUP: Prevent UI stacking
+-- CLEANUP: Clear any older versions before running
 if LocalPlayer.PlayerGui:FindFirstChild("TitaniumHubGui") then
     LocalPlayer.PlayerGui.TitaniumHubGui:Destroy()
 end
 
--- Config
+-- Configuration Variables
 local Config = {
     AimbotEnabled = false,
+    AutoShootEnabled = false,
     FovRadius = 50,
     EspEnabled = false
 }
 
--- FOV Circle
+-- FOV Circle Visual
 local FovCircle = Drawing.new("Circle")
 FovCircle.Color = Color3.fromRGB(200, 0, 0)
 FovCircle.Thickness = 1.5
@@ -35,7 +37,7 @@ ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 580, 0, 360)
 MainFrame.Position = UDim2.new(0.5, -290, 0.5, -180)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 4, 4) -- Ultra dark red-tinted black
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 4, 4)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -65,7 +67,7 @@ TopTitle.BackgroundTransparency = 1
 TopTitle.Parent = TopBar
 
 local TopStats = Instance.new("TextLabel")
-TopStats.Text = "FPS: 60  |  PING: 45ms  |  VER: v2.1b"
+TopStats.Text = "FPS: 60  |  PING: 45ms  |  VER: v2.3b"
 TopStats.Size = UDim2.new(0, 200, 1, 0)
 TopStats.Position = UDim2.new(1, -210, 0, 0)
 TopStats.TextColor3 = Color3.fromRGB(120, 30, 30)
@@ -173,7 +175,7 @@ local function createInlineToggle(section, text, default, callback)
     
     local label = Instance.new("TextLabel")
     label.Text = text
-    label.Size = UDim2.new(0.8, 0, 1, 0)
+    label.Size = UDim2.new(0.75, 0, 1, 0)
     label.TextColor3 = Color3.fromRGB(180, 180, 180)
     label.Font = Enum.Font.SourceSans
     label.TextSize = 13
@@ -254,14 +256,18 @@ local function createRowSlider(section, labelText, min, max, default, callback)
     sliderBg.InputChanged:Connect(function(i) if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseMovement then update(i) end end)
 end
 
--- Generate the Layout Columns
+-- Generate Layout Columns
 local CombatSection = createSection("Auto Settings", LeftColumn)
 local VisualsSection = createSection("Visuals", RightColumn)
 
--- Populate Elements
+-- Populate UI Elements
 createInlineToggle(CombatSection, "Enable Aimbot Lock", false, function(s) 
     Config.AimbotEnabled = s 
     FovCircle.Visible = s 
+end)
+
+createInlineToggle(CombatSection, "Auto Shoot (TB)", false, function(s)
+    Config.AutoShootEnabled = s
 end)
 
 createRowSlider(CombatSection, "Aimbot FOV Radius", 1, 100, 50, function(v) 
@@ -292,7 +298,7 @@ MenuToggleBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- Core Aimbot Engine & Wall Scanning Logic
+-- Exact Wall Check & Tracking Formula
 local function isVisible(target)
     local rayParams = RaycastParams.new()
     rayParams.FilterDescendantsInstances = {LocalPlayer.Character, target}
@@ -337,15 +343,34 @@ end
 for _, p in pairs(Players:GetPlayers()) do addEsp(p) end
 Players.PlayerAdded:Connect(addEsp)
 
--- Frame Update Loop
+-- Core Render Update Loop
 RunService.RenderStepped:Connect(function()
-    FovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    local centerScreen = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    FovCircle.Position = centerScreen
     FovCircle.Radius = Config.FovRadius * 4
     
+    -- Handle Aimbot Look Tracking
     if Config.AimbotEnabled then
         local target = getClosestTarget()
         if target then 
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Head.Position) 
+        end
+    end
+    
+    -- Handle Auto Shoot (TB / Triggerbot) Execution
+    if Config.AutoShootEnabled and Mouse.Target then
+        local hitObject = Mouse.Target
+        local character = hitObject:FindFirstAncestorOfClass("Model")
+        
+        if character and character:FindFirstChild("Humanoid") and character ~= LocalPlayer.Character then
+            local targetPlayer = Players:GetPlayerFromCharacter(character)
+            if targetPlayer and character:FindFirstChild("Head") and isVisible(character) then
+                -- Emulate button press
+                local virtualUser = game:GetService("VirtualUser")
+                virtualUser:Button1Down(Vector2.new(0,0), Camera.CFrame)
+                task.wait()
+                virtualUser:Button1Up(Vector2.new(0,0), Camera.CFrame)
+            end
         end
     end
 end)
