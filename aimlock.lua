@@ -53,6 +53,16 @@ UIPadding.PaddingLeft = UDim.new(0, 15)
 UIPadding.PaddingRight = UDim.new(0, 15)
 UIPadding.Parent = Frame
 
+-- Title Label inside the Menu Frame
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Text = "Titanium Hub"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 18
+Title.Font = Enum.Font.SourceSansBold
+Title.BackgroundTransparency = 1
+Title.Parent = Frame
+
 -- Helper Functions
 local function createToggle(text, callback)
     local button = Instance.new("TextButton")
@@ -91,6 +101,25 @@ end
 SliderBg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.Touch then updateSlider(i) end end)
 SliderBg.InputChanged:Connect(function(i) if i.UserInputType == Enum.UserInputType.Touch then updateSlider(i) end end)
 
+-- Mobile Open/Close Toggle Button
+local MenuToggleBtn = Instance.new("TextButton")
+MenuToggleBtn.Size = UDim2.new(0, 100, 0, 35)
+MenuToggleBtn.Position = UDim2.new(0.5, -50, 0, 10) -- Centers it at the very top of your mobile screen
+MenuToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+MenuToggleBtn.Text = "Titanium Hub"
+MenuToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MenuToggleBtn.Font = Enum.Font.SourceSansBold
+MenuToggleBtn.TextSize = 14
+MenuToggleBtn.Parent = ScreenGui
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+ToggleCorner.Parent = MenuToggleBtn
+
+MenuToggleBtn.MouseButton1Click:Connect(function()
+    Frame.Visible = not Frame.Visible
+end)
+
 -- ESP Logic
 local function addEsp(player)
     if player == LocalPlayer then return end
@@ -110,7 +139,7 @@ local function isVisible(target)
     rayParams.FilterDescendantsInstances = {LocalPlayer.Character, target}
     rayParams.FilterType = Enum.RaycastFilterType.Exclude
     local result = workspace:Raycast(Camera.CFrame.Position, (target.Head.Position - Camera.CFrame.Position), rayParams)
-    return result == nil -- Returns true if nothing is in the way
+    return result == nil 
 end
 
 local function getClosestTarget()
@@ -140,4 +169,3 @@ RunService.RenderStepped:Connect(function()
         if target then Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Head.Position) end
     end
 end)
-
