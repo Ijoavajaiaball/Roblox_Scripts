@@ -5,7 +5,7 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- CLEANUP: Delete old UI if it exists to prevent duplication
+-- CLEANUP: Clear any older versions before running
 if LocalPlayer.PlayerGui:FindFirstChild("TitaniumHubGui") then
     LocalPlayer.PlayerGui.TitaniumHubGui:Destroy()
 end
@@ -19,7 +19,7 @@ local Config = {
 
 -- FOV Circle Visual
 local FovCircle = Drawing.new("Circle")
-FovCircle.Color = Color3.fromRGB(0, 255, 137)
+FovCircle.Color = Color3.fromRGB(255, 0, 0) -- Red accent to match new theme
 FovCircle.Thickness = 1.5
 FovCircle.NumSides = 64
 FovCircle.Filled = false
@@ -31,109 +31,165 @@ ScreenGui.Name = "TitaniumHubGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Main Menu Frame
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 240, 0, 320)
-Frame.Position = UDim2.new(0.05, 0, 0.25, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-Frame.BorderSizePixel = 0
-Frame.Active = true
-Frame.Draggable = true
-Frame.Parent = ScreenGui
+-- Main Menu Frame (New AJJANS Style Red/Dark)
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 450, 0, 300)
+MainFrame.Position = UDim2.new(0.5, -225, 0.5, -150)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
 
--- UI Padding & Layouts
-local ContentLayout = Instance.new("UIListLayout")
-ContentLayout.Parent = Frame
-ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
-ContentLayout.Padding = UDim.new(0, 10)
+local Border = Instance.new("UIStroke")
+Border.Color = Color3.fromRGB(150, 0, 0)
+Border.Thickness = 2
+Border.Parent = MainFrame
 
-local UIPadding = Instance.new("UIPadding")
-UIPadding.PaddingTop = UDim.new(0, 50)
-UIPadding.PaddingLeft = UDim.new(0, 15)
-UIPadding.PaddingRight = UDim.new(0, 15)
-UIPadding.Parent = Frame
+-- Left Sidebar Navigation
+local Nav = Instance.new("Frame")
+Nav.Size = UDim2.new(0, 100, 1, 0)
+Nav.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Nav.BorderSizePixel = 0
+Nav.Parent = MainFrame
 
--- Title Label inside the Menu Frame
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "Titanium Hub"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 18
+Title.Text = "Titanium"
+Title.TextColor3 = Color3.fromRGB(150, 0, 0)
+Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
 Title.BackgroundTransparency = 1
-Title.Parent = Frame
+Title.Parent = Nav
 
--- Helper Functions
+-- Right Side Content Window
+local Content = Instance.new("Frame")
+Content.Size = UDim2.new(1, -100, 1, 0)
+Content.Position = UDim2.new(0, 100, 0, 0)
+Content.BackgroundTransparency = 1
+Content.Parent = MainFrame
+
+local List = Instance.new("UIListLayout")
+List.Padding = UDim.new(0, 12)
+List.SortOrder = Enum.SortOrder.LayoutOrder
+List.Parent = Content
+
+local Padding = Instance.new("UIPadding")
+Padding.PaddingTop = UDim.new(0, 20)
+Padding.PaddingLeft = UDim.new(0, 20)
+Padding.PaddingRight = UDim.new(0, 20)
+Padding.Parent = Content
+
+-- Helper: Create Menu Toggles
 local function createToggle(text, callback)
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(1, 0, 0, 35)
-    button.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+    button.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     button.Text = text .. ": OFF"
-    button.TextColor3 = Color3.fromRGB(180, 180, 180)
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
     button.Font = Enum.Font.SourceSans
     button.TextSize = 14
-    button.Parent = Frame
+    button.BorderSizePixel = 0
+    button.Parent = Content
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 4)
+    corner.Parent = button
     
     local state = false
     button.MouseButton1Click:Connect(function()
         state = not state
-        button.BackgroundColor3 = state and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(35, 35, 40)
+        button.BackgroundColor3 = state and Color3.fromRGB(150, 0, 0) or Color3.fromRGB(25, 25, 25)
         button.Text = text .. (state and ": ON" or ": OFF")
         callback(state)
     end)
 end
 
--- Create Options
-createToggle("Aimbot Lock", function(state) Config.AimbotEnabled = state; FovCircle.Visible = state end)
-createToggle("Player ESP", function(state) Config.EspEnabled = state end)
+-- Create Script Elements
+createToggle("Aimbot Lock", function(state) 
+    Config.AimbotEnabled = state 
+    FovCircle.Visible = state 
+end)
 
--- FOV Slider
+createToggle("Player ESP", function(state) 
+    Config.EspEnabled = state 
+end)
+
+-- FOV Interactive Slider Block
 local SliderLabel = Instance.new("TextLabel")
-SliderLabel.Text = "FOV Radius: 50"; SliderLabel.Size = UDim2.new(1, 0, 0, 20); SliderLabel.BackgroundTransparency = 1; SliderLabel.Parent = Frame
-local SliderBg = Instance.new("TextButton"); SliderBg.Size = UDim2.new(1, 0, 0, 10); SliderBg.BackgroundColor3 = Color3.fromRGB(40, 40, 45); SliderBg.Parent = Frame
-local SliderFill = Instance.new("Frame"); SliderFill.Size = UDim2.new(0.5, 0, 1, 0); SliderFill.BackgroundColor3 = Color3.fromRGB(52, 152, 219); SliderFill.Parent = SliderBg
+SliderLabel.Text = "FOV Radius: " .. Config.FovRadius
+SliderLabel.Size = UDim2.new(1, 0, 0, 20)
+SliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+SliderLabel.BackgroundTransparency = 1
+SliderLabel.Font = Enum.Font.SourceSans
+SliderLabel.TextSize = 14
+SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+SliderLabel.Parent = Content
+
+local SliderBg = Instance.new("TextButton")
+SliderBg.Size = UDim2.new(1, 0, 0, 12)
+SliderBg.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+SliderBg.Text = ""
+SliderBg.BorderSizePixel = 0
+SliderBg.Parent = Content
+
+local SliderFill = Instance.new("Frame")
+SliderFill.Size = UDim2.new(Config.FovRadius / 100, 0, 1, 0)
+SliderFill.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+SliderFill.BorderSizePixel = 0
+SliderFill.Parent = SliderBg
 
 local function updateSlider(input)
     local relX = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
     Config.FovRadius = math.round(relX * 100)
-    SliderFill.Size = UDim2.new(relX, 0, 1, 0); SliderLabel.Text = "FOV Radius: " .. Config.FovRadius
+    if Config.FovRadius < 1 then Config.FovRadius = 1 end
+    
+    SliderFill.Size = UDim2.new(relX, 0, 1, 0)
+    SliderLabel.Text = "FOV Radius: " .. Config.FovRadius
 end
+
 SliderBg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.Touch then updateSlider(i) end end)
 SliderBg.InputChanged:Connect(function(i) if i.UserInputType == Enum.UserInputType.Touch then updateSlider(i) end end)
 
--- Mobile Open/Close Toggle Button
+-- Mobile Header Open/Close Button
 local MenuToggleBtn = Instance.new("TextButton")
-MenuToggleBtn.Size = UDim2.new(0, 100, 0, 35)
-MenuToggleBtn.Position = UDim2.new(0.5, -50, 0, 10) -- Centers it at the very top of your mobile screen
-MenuToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+MenuToggleBtn.Size = UDim2.new(0, 110, 0, 35)
+MenuToggleBtn.Position = UDim2.new(0.5, -55, 0, 10)
+MenuToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MenuToggleBtn.Text = "Titanium Hub"
 MenuToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 MenuToggleBtn.Font = Enum.Font.SourceSansBold
 MenuToggleBtn.TextSize = 14
 MenuToggleBtn.Parent = ScreenGui
 
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(0, 6)
-ToggleCorner.Parent = MenuToggleBtn
+local BtnBorder = Instance.new("UIStroke")
+BtnBorder.Color = Color3.fromRGB(150, 0, 0)
+BtnBorder.Thickness = 1.5
+BtnBorder.Parent = MenuToggleBtn
 
 MenuToggleBtn.MouseButton1Click:Connect(function()
-    Frame.Visible = not Frame.Visible
+    MainFrame.Visible = not MainFrame.Visible
 end)
 
--- ESP Logic
+-- ESP Feature Logic
 local function addEsp(player)
     if player == LocalPlayer then return end
     player.CharacterAdded:Connect(function(char)
         local highlight = Instance.new("Highlight")
         highlight.Adornee = char
+        highlight.FillColor = Color3.fromRGB(150, 0, 0)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
         highlight.Parent = char
-        RunService.RenderStepped:Connect(function() highlight.Enabled = Config.EspEnabled end)
+        RunService.RenderStepped:Connect(function() 
+            highlight.Enabled = Config.EspEnabled and char:FindFirstChild("HumanoidRootPart") ~= nil
+        end)
     end)
 end
 for _, p in pairs(Players:GetPlayers()) do addEsp(p) end
 Players.PlayerAdded:Connect(addEsp)
 
--- Wall Check & Aimbot Target
+-- Exact Wall Check & Tracking Formula
 local function isVisible(target)
     local rayParams = RaycastParams.new()
     rayParams.FilterDescendantsInstances = {LocalPlayer.Character, target}
@@ -160,12 +216,15 @@ local function getClosestTarget()
     return closest
 end
 
--- Core Loop
+-- Core Render Thread
 RunService.RenderStepped:Connect(function()
     FovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
     FovCircle.Radius = Config.FovRadius * 4
+    
     if Config.AimbotEnabled then
         local target = getClosestTarget()
-        if target then Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Head.Position) end
+        if target then 
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Head.Position) 
+        end
     end
 end)
