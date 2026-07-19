@@ -34,7 +34,6 @@ Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 Frame.BorderSizePixel = 0
 Frame.Active = true
 Frame.Draggable = true
-Frame.Parent = Frame.Parent -- Temporary assignment to fix layout order dependencies
 Frame.Parent = ScreenGui
 
 local UICorner = Instance.new("UICorner")
@@ -195,7 +194,6 @@ local function addEsp(player)
         highlight.Adornee = character
         highlight.Parent = character
         
-        -- Instantly hides highlight if config option is toggled off
         RunService.RenderStepped:Connect(function()
             highlight.Enabled = Config.EspEnabled and character:FindFirstChild("HumanoidRootPart") ~= nil
         end)
@@ -210,12 +208,42 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 Players.PlayerAdded:Connect(addEsp)
 
--- Fixed Screen-Center Loop
+-- Helper function to find the closest target inside the FOV
+local function getClosestTarget()
+    local maxDistance = Config.FovRadius * 4
+    local targetCharacter = nil
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local head = player.Character.Head
+            local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+            
+            if onScreen then
+                local distanceToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                if distanceToCenter < maxDistance then
+                    maxDistance = distanceToCenter
+                    targetCharacter = player.Character
+                end
+            end
+        end
+    end
+    return targetCharacter
+end
+
+-- Core Render Loop: Stable FOV & Active Camera Lock-on
 RunService.RenderStepped:Connect(function()
-    -- Dynamically updates the center position based on current screen dimensions
     local viewportSize = Camera.ViewportSize
     FovCircle.Position = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
-    
-    -- Multiplier scales the 1-100 values nicely to actual screen pixels
     FovCircle.Radius = Config.FovRadius * 4 
+
+    if Config.AimbotEnabled then
+        local target = getClosestTarget()
+        if target and target:FindFirstChild("Head") then
+            -- Smoothing value: lower = slower/smoother lock, higher = snappier instantaneous lock
+            local Smoothing = 0.15 
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, target.Head.Position)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, Smoothing)
+        end
+    end
 end)
