@@ -1,237 +1,59 @@
--- Services
+-- [[ TITANIUM HUB: BLADE BALL AUTO-PARRY ]]
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
 local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 
--- CLEANUP: Clear duplicate UI instances
-if LocalPlayer.PlayerGui:FindFirstChild("TitaniumBladeGui") then
-    LocalPlayer.PlayerGui.TitaniumBladeGui:Destroy()
-end
+-- Locate the Parry Remote (Blade Ball frequently obfuscates or changes these)
+-- Common remotes: "ParryAttempt", "Parry", "Block", or an Argument inside a generic Remote
+local ParryRemote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("ParryAttempt") 
+    or ReplicatedStorage:FindFirstChild("ParryAttempt") 
+    or ReplicatedStorage:FindFirstChild("Parry")
 
--- Configuration Configuration
-local Config = {
-    AutoParry = false,
-    ParryRange = 45,       -- Distance backup threshold
-    ReactionTime = 0.14    -- Dynamic TTI window threshold (seconds)
-}
-
--- UI Root Container
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "TitaniumBladeGui"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
--- Main Menu Window
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 320, 0, 240)
-MainFrame.Position = UDim2.new(0.5, -160, 0.5, -120)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 4, 4)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Parent = ScreenGui
-
-local MainBorder = Instance.new("UIStroke")
-MainBorder.Color = Color3.fromRGB(120, 10, 10)
-MainBorder.Thickness = 1.5
-MainBorder.Parent = MainFrame
-
--- Top Status Bar
-local TopBar = Instance.new("Frame")
-TopBar.Size = UDim2.new(1, 0, 0, 30)
-TopBar.BackgroundColor3 = Color3.fromRGB(8, 2, 2)
-TopBar.BorderSizePixel = 0
-TopBar.Parent = MainFrame
-
-local TopTitle = Instance.new("TextLabel")
-TopTitle.Text = "A  TITANIUM: BLADE"
-TopTitle.Size = UDim2.new(1, -10, 1, 0)
-TopTitle.Position = UDim2.new(0, 10, 0, 0)
-TopTitle.TextColor3 = Color3.fromRGB(200, 20, 20)
-TopTitle.TextSize = 13
-TopTitle.Font = Enum.Font.SourceSansBold
-TopTitle.TextXAlignment = Enum.TextXAlignment.Left
-TopTitle.BackgroundTransparency = 1
-TopTitle.Parent = TopBar
-
--- Container Layout
-local ContentFrame = Instance.new("Frame")
-ContentFrame.Size = UDim2.new(1, -20, 1, -45)
-ContentFrame.Position = UDim2.new(0, 10, 0, 40)
-ContentFrame.BackgroundTransparency = 1
-ContentFrame.Parent = MainFrame
-
-local Layout = Instance.new("UIListLayout")
-Layout.Padding = UDim.new(0, 10)
-Layout.SortOrder = Enum.SortOrder.LayoutOrder
-Layout.Parent = ContentFrame
-
--- Inline components
-local function createToggle(text, default, callback)
-    local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, 0, 0, 30)
-    row.BackgroundTransparency = 1
-    row.Parent = ContentFrame
-    
-    local label = Instance.new("TextLabel")
-    label.Text = text
-    label.Size = UDim2.new(0.7, 0, 1, 0)
-    label.TextColor3 = Color3.fromRGB(180, 180, 180)
-    label.Font = Enum.Font.SourceSans
-    label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.BackgroundTransparency = 1
-    label.Parent = row
-    
-    local switch = Instance.new("TextButton")
-    switch.Size = UDim2.new(0, 40, 0, 20)
-    switch.Position = UDim2.new(1, -40, 0, 5)
-    switch.BackgroundColor3 = default and Color3.fromRGB(200, 20, 20) or Color3.fromRGB(40, 40, 40)
-    switch.Text = ""
-    switch.BorderSizePixel = 0
-    switch.Parent = row
-    
-    local round = Instance.new("UICorner")
-    round.CornerRadius = UDim.new(1, 0)
-    round.Parent = switch
-    
-    local state = default
-    switch.MouseButton1Click:Connect(function()
-        state = not state
-        switch.BackgroundColor3 = state and Color3.fromRGB(200, 20, 20) or Color3.fromRGB(40, 40, 40)
-        callback(state)
-    end)
-end
-
-local function createSlider(labelText, min, max, default, callback)
-    local sliderBg = Instance.new("TextButton")
-    sliderBg.Size = UDim2.new(1, 0, 0, 30)
-    sliderBg.BackgroundColor3 = Color3.fromRGB(45, 10, 10)
-    sliderBg.Text = ""
-    sliderBg.BorderSizePixel = 0
-    sliderBg.Parent = ContentFrame
-    
-    local border = Instance.new("UIStroke")
-    border.Color = Color3.fromRGB(140, 15, 15)
-    border.Thickness = 1
-    border.Parent = sliderBg
-    
-    local sliderFill = Instance.new("Frame")
-    sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
-    sliderFill.BackgroundColor3 = Color3.fromRGB(180, 15, 15)
-    sliderFill.BorderSizePixel = 0
-    sliderFill.Parent = sliderBg
-    
-    local displayLabel = Instance.new("TextLabel")
-    displayLabel.Text = labelText .. ": " .. default
-    displayLabel.Size = UDim2.new(1, 0, 1, 0)
-    displayLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    displayLabel.Font = Enum.Font.SourceSans
-    displayLabel.TextSize = 13
-    displayLabel.BackgroundTransparency = 1
-    displayLabel.ZIndex = 2
-    displayLabel.Parent = sliderBg
-
-    local function update(input)
-        local relX = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
-        local val = math.round(min + (relX * (max - min)))
-        sliderFill.Size = UDim2.new(relX, 0, 1, 0)
-        displayLabel.Text = labelText .. ": " .. val
-        callback(val)
-    end
-
-    sliderBg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then update(i) end end)
-    sliderBg.InputChanged:Connect(function(i) if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseMovement then update(i) end end)
-end
-
--- Render GUI Control Toggles
-createToggle("Enable Auto Parry", false, function(s) Config.AutoParry = s end)
-createSlider("Parry Distance", 20, 100, 45, function(v) Config.ParryRange = v end)
-
--- Mobile Header Expand Button
-local MenuToggleBtn = Instance.new("TextButton")
-MenuToggleBtn.Size = UDim2.new(0, 130, 0, 26)
-MenuToggleBtn.Position = UDim2.new(0.5, -65, 0, 2)
-MenuToggleBtn.BackgroundColor3 = Color3.fromRGB(15, 5, 5)
-MenuToggleBtn.Text = "Titanium Blade"
-MenuToggleBtn.TextColor3 = Color3.fromRGB(230, 20, 20)
-MenuToggleBtn.Font = Enum.Font.SourceSansBold
-MenuToggleBtn.TextSize = 13
-MenuToggleBtn.Parent = ScreenGui
-
-local BtnBorder = Instance.new("UIStroke")
-BtnBorder.Color = Color3.fromRGB(150, 10, 10)
-BtnBorder.Thickness = 1.2
-BtnBorder.Parent = MenuToggleBtn
-
-MenuToggleBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
-end)
-
--- Find Active Ball Engine
-local function getActiveBall()
-    -- Dynamic tracking fallback looking for typical custom ball group folders
-    local ballsFolder = workspace:FindFirstChild("Balls")
-    if ballsFolder then
-        for _, ball in ipairs(ballsFolder:GetChildren()) do
-            if ball:GetAttribute("realBall") == true or ball.Name:lower():find("ball") then
-                return ball
-            end
-        end
-    end
-    -- Ultimate fallback scan of baseline workspace
+local function getBall()
+    -- Look through the workspace for the active ball object
     for _, obj in ipairs(workspace:GetChildren()) do
-        if obj.Name:lower():find("ball") and obj:IsA("BasePart") then
+        if obj.Name == "Ball" or obj:FindFirstChild("BallScript") or obj:GetAttribute("Ball") then
             return obj
         end
     end
     return nil
 end
 
--- Execute Remote Network Parry Injection
-local function fireParryRemote()
-    -- Look for the parry remote event across game directory structures safely
-    local parryRemote = ReplicatedStorage:FindFirstChild("Parry") or 
-                        ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("ParryAttempt")
+-- Active Auto-Parry Loop
+local AutoParryConnection
+AutoParryConnection = RunService.Heartbeat:Connect(function()
+    local ball = getBall()
+    if not ball or not Character:FindFirstChild("HumanoidRootPart") then return end
     
-    if parryRemote and parryRemote:IsA("RemoteEvent") then
-        parryRemote:FireServer()
-    else
-        -- Absolute engine backup simulation action block
-        local virtualUser = game:GetService("VirtualUser")
-        virtualUser:ClickButton1(Vector2.new(0, 0))
-    end
-end
-
--- Continuous Physics Calculation Core Hook
-RunService.PostSimulation:Connect(function()
-    if not Config.AutoParry then return end
+    local hrp = Character.HumanoidRootPart
+    local ballPosition = ball.Position
+    local playerPosition = hrp.Position
     
-    local character = LocalPlayer.Character
-    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
+    -- Calculate distance between you and the ball
+    local distance = (ballPosition - playerPosition).Magnitude
     
-    local ball = getActiveBall()
-    if ball then
-        local ballPosition = ball.Position
-        local ballVelocity = ball.AssemblyLinearVelocity
-        local playerPosition = rootPart.Position
-        
-        -- Vector parsing to calculate target paths
-        local distance = (ballPosition - playerPosition).Magnitude
-        local directionToPlayer = (playerPosition - ballPosition).Unit
-        local velocityTowardsPlayer = ballVelocity:Dot(directionToPlayer)
-        
-        if velocityTowardsPlayer > 0 then
-            -- TTI Equation: Time = Distance / Speed
-            local timeToImpact = distance / velocityTowardsPlayer
-            
-            -- Trigger block if ball hits reaction threshold or drops below safe range limits
-            if timeToImpact <= Config.ReactionTime or distance <= Config.ParryRange then
-                fireParryRemote()
-            end
+    -- Check ball's velocity vector to see if it's moving towards you
+    local ballVelocity = ball.AssemblyLinearVelocity
+    local directionToPlayer = (playerPosition - ballPosition).Unit
+    local dotProduct = ballVelocity.Unit:Dot(directionToPlayer)
+    
+    -- Target detection: Adjust target distance based on ball speed (dynamic scaling)
+    local currentBallSpeed = ballVelocity.Magnitude
+    local parryThreshold = math.clamp(currentBallSpeed * 0.4, 15, 45) -- Dynamically scales parry window
+    
+    -- If ball is moving toward us and is within the dynamic threshold, fire the remote
+    if dotProduct > 0.35 and distance <= parryThreshold then
+        if ParryRemote then
+            -- Standard Blade Ball remote signature requires a vector or boolean context
+            ParryRemote:FireServer(true, ballPosition)
         end
     end
+end)
+
+-- Clean up connection on death
+Character:FindFirstChildOfClass("Humanoid").Died:Connect(function()
+    if AutoParryConnection then AutoParryConnection:Disconnect() end
 end)
