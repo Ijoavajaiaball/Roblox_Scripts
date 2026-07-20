@@ -12,8 +12,8 @@ end
 -- State Configuration
 local CombatConfig = {
     AutoBlockEnabled = false,
-    DetectionRadius = 16, -- Optimal close-quarters combat distance (in studs)
-    SafetyPadding = 0.2,   -- Seconds to hold block after an attack ends to prevent flickering
+    DetectionRadius = 15,    -- Distance in studs to intercept attacks/dashes
+    SafetyPadding = 0.15     -- Extra hold window (seconds) to ensure full hitboxes are blocked
 }
 
 local isGuarding = false
@@ -29,7 +29,7 @@ ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 240, 0, 140)
 MainFrame.Position = UDim2.new(0.5, -120, 0.4, -70)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 4, 4) -- Dark red-tinted black theme
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 4, 4) -- Dark red theme
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -42,7 +42,7 @@ MainBorder.Parent = MainFrame
 
 -- Panel Title
 local PanelTitle = Instance.new("TextLabel")
-PanelTitle.Text = "TITANIUM HUB — TSB TRIGGER"
+PanelTitle.Text = "TITANIUM HUB — TSB FIXED"
 PanelTitle.Size = UDim2.new(1, 0, 0, 30)
 PanelTitle.BackgroundColor3 = Color3.fromRGB(8, 2, 2)
 PanelTitle.TextColor3 = Color3.fromRGB(220, 20, 20)
@@ -112,7 +112,7 @@ local function createToggle(text, default, callback)
     end)
 end
 
--- Mobile Minimize/Maximize UI Button
+-- Mobile Panel Collapse Button
 local MenuToggleBtn = Instance.new("TextButton")
 MenuToggleBtn.Size = UDim2.new(0, 130, 0, 26)
 MenuToggleBtn.Position = UDim2.new(0.5, -65, 0, 5)
@@ -138,10 +138,9 @@ createToggle("Insta-Trigger Block", false, function(state)
 end)
 
 -- ==========================================================
--- ENGINE: ACTION-PRIORITY COMBAT TRIGGERBOT
+-- LOOP-FILTERED COMBAT TRIGGERBOT ENGINE
 -- ==========================================================
 
--- Engine key-binding handlers
 local function engageGuard()
     if not isGuarding then
         isGuarding = true
@@ -157,7 +156,7 @@ local function releaseGuard()
     end
 end
 
--- Character distance & health validator
+-- Validate distance, presence, and life states
 local function isTargetValid(character)
     if not character or character == LocalPlayer.Character then return false end
     
@@ -173,14 +172,16 @@ local function isTargetValid(character)
     return false
 end
 
--- Scans surrounding tracks for higher-level Action priorities (ignoring movement/idles)
+-- Scan currently executing tracks specifically for unlooped combat actions
 local function hasActiveThreats()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and isTargetValid(player.Character) then
             local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
             if humanoid then
                 for _, track in ipairs(humanoid:GetPlayingAnimationTracks()) do
-                    if track and track.Priority and track.Priority.Value >= Enum.AnimationPriority.Action.Value then
+                    -- CRITICAL FILTER: Attacks/Front-Dashes are NEVER looped.
+                    -- Walking, running, and idles are ALWAYS looped (ignores them entirely).
+                    if track.Looped == false and track.Priority.Value >= Enum.AnimationPriority.Action.Value then
                         return true
                     end
                 end
@@ -190,7 +191,7 @@ local function hasActiveThreats()
     return false
 end
 
--- Direct event pipeline connection (bypasses frame delay bottlenecks)
+-- Direct Event Connection: Fires on the exact frame an animation replicates
 local function hookThreatTracking(character)
     if character == LocalPlayer.Character then return end
     
@@ -200,15 +201,15 @@ local function hookThreatTracking(character)
     humanoid.AnimationPlayed:Connect(function(track)
         if not CombatConfig.AutoBlockEnabled or not isTargetValid(character) then return end
         
-        -- Filter checks: ensures it only trips on combat skills, M1 strings, and dashes
-        if track and track.Priority and track.Priority.Value >= Enum.AnimationPriority.Action.Value then
+        -- Instant reaction execution if a non-looped action priority (Attack/Dash) registers
+        if track.Looped == false and track.Priority.Value >= Enum.AnimationPriority.Action.Value then
             engageGuard()
             lastBlockTime = os.clock()
         end
     end)
 end
 
--- Intelligent frame state monitoring thread (handles safety buffers)
+-- Precision state resolution and guard-drop mitigation loop
 RunService.Heartbeat:Connect(function()
     if not CombatConfig.AutoBlockEnabled then
         if isGuarding then releaseGuard() end
@@ -223,16 +224,16 @@ RunService.Heartbeat:Connect(function()
     
     if hasActiveThreats() then
         engageGuard()
-        lastBlockTime = os.clock() -- Keeps shield open as long as threat framework is active
+        lastBlockTime = os.clock() -- Holds block active continuously while the unlooped action track runs
     else
-        -- Prevents block spam/flickering by letting padding breathe before releasing
+        -- Safely drop guard only after the non-looped attack completes + tiny padding window clears
         if isGuarding and (os.clock() - lastBlockTime >= CombatConfig.SafetyPadding) then
             releaseGuard()
         end
     end
 end)
 
--- Initialize dynamic platform collection structures
+-- Initialize listeners across player runtime lists
 local function initialize()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
