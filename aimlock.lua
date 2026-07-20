@@ -1,389 +1,186 @@
--- Services
+-- [[ TITANIUM HUB: MULTI-FUNCTION CHEAT SUITE ]]
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
 local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
-local Mouse = LocalPlayer:GetMouse()
+local Camera = Workspace.CurrentCamera
 
--- CLEANUP: Clear any older versions before running
-if LocalPlayer.PlayerGui:FindFirstChild("TitaniumHubGui") then
-    LocalPlayer.PlayerGui.TitaniumHubGui:Destroy()
-end
-
--- Configuration Variables
+-- Global Feature States
 local Config = {
-    AimbotEnabled = false,
-    AutoShootEnabled = false,
-    FovRadius = 50,
-    EspEnabled = false
+    Aimbot = false,
+    AutoShoot = false,
+    TargetPart = "HumanoidRootPart",
+    MaxDistance = 500,
+    Smoothness = 1 -- Lower = snappier, Higher = smoother tracking
 }
 
--- FOV Circle Visual
-local FovCircle = Drawing.new("Circle")
-FovCircle.Color = Color3.fromRGB(200, 0, 0)
-FovCircle.Thickness = 1.5
-FovCircle.NumSides = 64
-FovCircle.Filled = false
-FovCircle.Visible = false
+----------------------------------------------------------------
+-- 1. MOBILE-OPTIMIZED UI INTERFACE
+----------------------------------------------------------------
 
--- UI Root Container
+-- Create ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "TitaniumHubGui"
+ScreenGui.Name = "TitaniumHub_UI"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+-- Use pcall in case it's run in an environment that restricts CoreGui
+pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end)
 
--- Main Menu Window
+-- Main Background Frame
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 580, 0, 360)
-MainFrame.Position = UDim2.new(0.5, -290, 0.5, -180)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 4, 4)
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 240, 0, 200)
+MainFrame.Position = UDim2.new(0.5, -120, 0.4, -100)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
-MainFrame.Draggable = true
+MainFrame.Draggable = true -- Legacy mobile support; UI dragging enabled
 MainFrame.Parent = ScreenGui
 
-local MainBorder = Instance.new("UIStroke")
-MainBorder.Color = Color3.fromRGB(120, 10, 10)
-MainBorder.Thickness = 1.5
-MainBorder.Parent = MainFrame
+-- Corner Smoothing
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = MainFrame
 
--- Top Status Bar
-local TopBar = Instance.new("Frame")
-TopBar.Size = UDim2.new(1, 0, 0, 30)
-TopBar.BackgroundColor3 = Color3.fromRGB(8, 2, 2)
-TopBar.BorderSizePixel = 0
-TopBar.Parent = MainFrame
+-- Header Title
+local Header = Instance.new("TextLabel")
+Header.Name = "Header"
+Header.Size = UDim2.new(1, 0, 0, 35)
+Header.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+Header.Text = "  TITANIUM HUB v2.0"
+Header.TextColor3 = Color3.fromRGB(0, 210, 255)
+Header.TextSize = 14
+Header.Font = Enum.Font.SourceSansBold
+Header.TextXAlignment = Enum.TextXAlignment.Left
+Header.Parent = MainFrame
 
-local TopTitle = Instance.new("TextLabel")
-TopTitle.Text = "A  TITANIUM"
-TopTitle.Size = UDim2.new(0, 120, 1, 0)
-TopTitle.Position = UDim2.new(0, 10, 0, 0)
-TopTitle.TextColor3 = Color3.fromRGB(200, 20, 20)
-TopTitle.TextSize = 14
-TopTitle.Font = Enum.Font.SourceSansBold
-TopTitle.TextXAlignment = Enum.TextXAlignment.Left
-TopTitle.BackgroundTransparency = 1
-TopTitle.Parent = TopBar
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 8)
+HeaderCorner.Parent = Header
 
-local TopStats = Instance.new("TextLabel")
-TopStats.Text = "FPS: 60  |  PING: 45ms  |  VER: v2.5b"
-TopStats.Size = UDim2.new(0, 200, 1, 0)
-TopStats.Position = UDim2.new(1, -210, 0, 0)
-TopStats.TextColor3 = Color3.fromRGB(120, 30, 30)
-TopStats.TextSize = 12
-TopStats.Font = Enum.Font.SourceSans
-TopStats.TextXAlignment = Enum.TextXAlignment.Right
-TopStats.BackgroundTransparency = 1
-TopStats.Parent = TopBar
+-- UI Helper Function to Build Toggles
+local function CreateToggle(name, text, positionY, callback)
+    local ToggleButton = Instance.new("TextButton")
+    ToggleButton.Name = name
+    ToggleButton.Size = UDim2.new(0, 200, 0, 35)
+    ToggleButton.Position = UDim2.new(0.5, -100, 0, positionY)
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+    ToggleButton.Text = text .. " [OFF]"
+    ToggleButton.TextColor3 = Color3.fromRGB(200, 50, 50)
+    ToggleButton.TextSize = 14
+    ToggleButton.Font = Enum.Font.SourceSans
+    ToggleButton.Parent = MainFrame
 
--- Left Sidebar Navigation
-local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 110, 1, -30)
-Sidebar.Position = UDim2.new(0, 0, 0, 30)
-Sidebar.BackgroundColor3 = Color3.fromRGB(10, 3, 3)
-Sidebar.BorderSizePixel = 0
-Sidebar.Parent = MainFrame
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(0, 4)
+    BtnCorner.Parent = ToggleButton
 
-local MainTab = Instance.new("TextLabel")
-MainTab.Text = "♥  Main"
-MainTab.Size = UDim2.new(1, -10, 0, 35)
-MainTab.Position = UDim2.new(0, 10, 0, 10)
-MainTab.TextColor3 = Color3.fromRGB(245, 245, 245)
-MainTab.TextSize = 14
-MainTab.Font = Enum.Font.SourceSansBold
-MainTab.TextXAlignment = Enum.TextXAlignment.Left
-MainTab.BackgroundTransparency = 1
-MainTab.Parent = Sidebar
-
-local SettingsTab = Instance.new("TextLabel")
-SettingsTab.Text = "⚙  Settings"
-SettingsTab.Size = UDim2.new(1, -10, 0, 35)
-SettingsTab.Position = UDim2.new(0, 10, 0, 45)
-SettingsTab.TextColor3 = Color3.fromRGB(130, 130, 130)
-SettingsTab.TextSize = 14
-SettingsTab.Font = Enum.Font.SourceSans
-SettingsTab.TextXAlignment = Enum.TextXAlignment.Left
-SettingsTab.BackgroundTransparency = 1
-SettingsTab.Parent = Sidebar
-
--- Columns Container
-local Container = Instance.new("Frame")
-Container.Size = UDim2.new(1, -120, 1, -40)
-Container.Position = UDim2.new(0, 115, 0, 35)
-Container.BackgroundTransparency = 1
-Container.Parent = MainFrame
-
-local LeftColumn = Instance.new("Frame")
-LeftColumn.Size = UDim2.new(0.5, -5, 1, 0)
-LeftColumn.Position = UDim2.new(0, 0, 0, 0)
-LeftColumn.BackgroundTransparency = 1
-LeftColumn.Parent = Container
-
-local RightColumn = Instance.new("Frame")
-RightColumn.Size = UDim2.new(0.5, -5, 1, 0)
-RightColumn.Position = UDim2.new(0.5, 5, 0, 0)
-RightColumn.BackgroundTransparency = 1
-RightColumn.Parent = Container
-
--- Functional Component Creators
-local function createSection(name, parentFrame)
-    local section = Instance.new("Frame")
-    section.Size = UDim2.new(1, 0, 1, 0)
-    section.BackgroundTransparency = 1
-    section.Parent = parentFrame
-    
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 8)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Parent = section
-
-    local header = Instance.new("Frame")
-    header.Size = UDim2.new(1, 0, 0, 25)
-    header.BackgroundTransparency = 1
-    header.LayoutOrder = 0
-    header.Parent = section
-    
-    local title = Instance.new("TextLabel")
-    title.Text = "⚙  " .. name
-    title.Size = UDim2.new(0.8, 0, 1, 0)
-    title.TextColor3 = Color3.fromRGB(240, 240, 240)
-    title.Font = Enum.Font.SourceSansBold
-    title.TextSize = 14
-    title.TextXAlignment = Enum.TextXAlignment.Left
-    title.BackgroundTransparency = 1
-    title.Parent = header
-    
-    local arrow = Instance.new("TextLabel")
-    arrow.Text = "∨"
-    arrow.Size = UDim2.new(0, 20, 1, 0)
-    arrow.Position = UDim2.new(1, -20, 0, 0)
-    arrow.TextColor3 = Color3.fromRGB(150, 20, 20)
-    arrow.Font = Enum.Font.SourceSansBold
-    arrow.TextSize = 12
-    arrow.BackgroundTransparency = 1
-    arrow.Parent = header
-    
-    return section
-end
-
-local function createInlineToggle(section, text, default, callback)
-    local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, 0, 0, 24)
-    row.BackgroundTransparency = 1
-    row.Parent = section
-    
-    local label = Instance.new("TextLabel")
-    label.Text = text
-    label.Size = UDim2.new(0.75, 0, 1, 0)
-    label.TextColor3 = Color3.fromRGB(180, 180, 180)
-    label.Font = Enum.Font.SourceSans
-    label.TextSize = 13
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.BackgroundTransparency = 1
-    label.Parent = row
-    
-    local switch = Instance.new("TextButton")
-    switch.Size = UDim2.new(0, 30, 0, 16)
-    switch.Position = UDim2.new(1, -30, 0, 4)
-    switch.BackgroundColor3 = default and Color3.fromRGB(200, 20, 20) or Color3.fromRGB(40, 40, 40)
-    switch.Text = ""
-    switch.BorderSizePixel = 0
-    switch.Parent = row
-    
-    local round = Instance.new("UICorner")
-    round.CornerRadius = UDim.new(1, 0)
-    round.Parent = switch
-    
-    local dot = Instance.new("Frame")
-    dot.Size = UDim2.new(0, 12, 0, 12)
-    dot.Position = default and UDim2.new(1, -14, 0, 2) or UDim2.new(0, 2, 0, 2)
-    dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    dot.BorderSizePixel = 0
-    dot.Parent = switch
-    
-    local sc = Instance.new("UICorner")
-    sc.CornerRadius = UDim.new(1, 0)
-    sc.Parent = dot
-
-    local state = default
-    switch.MouseButton1Click:Connect(function()
-        state = not state
-        switch.BackgroundColor3 = state and Color3.fromRGB(200, 20, 20) or Color3.fromRGB(40, 40, 40)
-        dot.Position = state and UDim2.new(1, -14, 0, 2) or UDim2.new(0, 2, 0, 2)
-        callback(state)
+    local active = false
+    ToggleButton.MouseButton1Click:Connect(function()
+        active = not active
+        if active then
+            ToggleButton.BackgroundColor3 = Color3.fromRGB(35, 65, 45)
+            ToggleButton.Text = text .. " [ON]"
+            ToggleButton.TextColor3 = Color3.fromRGB(50, 220, 50)
+        else
+            ToggleButton.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+            ToggleButton.Text = text .. " [OFF]"
+            ToggleButton.TextColor3 = Color3.fromRGB(200, 50, 50)
+        end
+        callback(active)
     end)
 end
 
-local function createRowSlider(section, labelText, min, max, default, callback)
-    local sliderBg = Instance.new("TextButton")
-    sliderBg.Size = UDim2.new(1, 0, 0, 24)
-    sliderBg.BackgroundColor3 = Color3.fromRGB(45, 10, 10)
-    sliderBg.Text = ""
-    sliderBg.BorderSizePixel = 0
-    sliderBg.Parent = section
-    
-    local border = Instance.new("UIStroke")
-    border.Color = Color3.fromRGB(140, 15, 15)
-    border.Thickness = 1
-    border.Parent = sliderBg
-    
-    local sliderFill = Instance.new("Frame")
-    sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
-    sliderFill.BackgroundColor3 = Color3.fromRGB(180, 15, 15)
-    sliderFill.BorderSizePixel = 0
-    sliderFill.Parent = sliderBg
-    
-    local displayLabel = Instance.new("TextLabel")
-    displayLabel.Text = labelText .. ": " .. default
-    displayLabel.Size = UDim2.new(1, 0, 1, 0)
-    displayLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    displayLabel.Font = Enum.Font.SourceSans
-    displayLabel.TextSize = 13
-    displayLabel.BackgroundTransparency = 1
-    displayLabel.ZIndex = 2
-    displayLabel.Parent = sliderBg
+-- Instantiating Feature Switches
+CreateToggle("AimbotToggle", "Aimbot Lock", 50, function(state) Config.Aimbot = state end)
+CreateToggle("TriggerbotToggle", "Auto-Shoot", 95, function(state) Config.AutoShoot = state end)
 
-    local function update(input)
-        local relX = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
-        local val = math.round(min + (relX * (max - min)))
-        sliderFill.Size = UDim2.new(relX, 0, 1, 0)
-        displayLabel.Text = labelText .. ": " .. val
-        callback(val)
-    end
+-- UI Minimize Button for Mobile Screens
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Name = "Minimize"
+MinimizeButton.Size = UDim2.new(0, 30, 0, 25)
+MinimizeButton.Position = UDim2.new(1, -35, 0, 5)
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+MinimizeButton.Text = "-"
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeButton.TextSize = 14
+MinimizeButton.Parent = MainFrame
 
-    sliderBg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then update(i) end end)
-    sliderBg.InputChanged:Connect(function(i) if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseMovement then update(i) end end)
-end
-
--- Generate Layout Columns
-local CombatSection = createSection("Auto Settings", LeftColumn)
-local VisualsSection = createSection("Visuals", RightColumn)
-
--- Populate UI Elements
-createInlineToggle(CombatSection, "Enable Aimbot Lock", false, function(s) 
-    Config.AimbotEnabled = s 
-    FovCircle.Visible = s 
-end)
-
-createInlineToggle(CombatSection, "Auto Shoot (TB)", false, function(s)
-    Config.AutoShootEnabled = s
-end)
-
-createRowSlider(CombatSection, "Aimbot FOV Radius", 1, 100, 50, function(v) 
-    Config.FovRadius = v 
-end)
-
-createInlineToggle(VisualsSection, "Esp Player Show", false, function(s) 
-    Config.EspEnabled = s 
-end)
-
--- Mobile Expand/Collapse Header Button
-local MenuToggleBtn = Instance.new("TextButton")
-MenuToggleBtn.Size = UDim2.new(0, 120, 0, 26)
-MenuToggleBtn.Position = UDim2.new(0.5, -60, 0, 2)
-MenuToggleBtn.BackgroundColor3 = Color3.fromRGB(15, 5, 5)
-MenuToggleBtn.Text = "Titanium Hub"
-MenuToggleBtn.TextColor3 = Color3.fromRGB(230, 20, 20)
-MenuToggleBtn.Font = Enum.Font.SourceSansBold
-MenuToggleBtn.TextSize = 13
-MenuToggleBtn.Parent = ScreenGui
-
-local BtnBorder = Instance.new("UIStroke")
-BtnBorder.Color = Color3.fromRGB(150, 10, 10)
-BtnBorder.Thickness = 1.2
-BtnBorder.Parent = MenuToggleBtn
-
-MenuToggleBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
-end)
-
--- Exact Wall Check & Tracking Formula
-local function isVisible(target)
-    local rayParams = RaycastParams.new()
-    rayParams.FilterDescendantsInstances = {LocalPlayer.Character, target}
-    rayParams.FilterType = Enum.RaycastFilterType.Exclude
-    local result = workspace:Raycast(Camera.CFrame.Position, (target.Head.Position - Camera.CFrame.Position), rayParams)
-    return result == nil 
-end
-
-local function getClosestTarget()
-    local maxDist = Config.FovRadius * 4
-    local closest = nil
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
-            local pos, onScreen = Camera:WorldToViewportPoint(p.Character.Head.Position)
-            if onScreen and isVisible(p.Character) then
-                local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                if dist < maxDist then
-                    maxDist = dist
-                    closest = p.Character
-                end
-            end
+local ContentVisible = true
+MinimizeButton.MouseButton1Click:Connect(function()
+    ContentVisible = not ContentVisible
+    for _, child in ipairs(MainFrame:GetChildren()) do
+        if child ~= Header and child ~= MinimizeButton and not child:IsA("UICorner") then
+            child.Visible = ContentVisible
         end
     end
-    return closest
-end
+    MainFrame.Size = ContentVisible and UDim2.new(0, 240, 0, 200) or UDim2.new(0, 240, 0, 35)
+    MinimizeButton.Text = ContentVisible and "-" or "+"
+end)
 
--- ESP Registration Thread
-local function addEsp(player)
-    if player == LocalPlayer then return end
-    player.CharacterAdded:Connect(function(char)
-        local highlight = Instance.new("Highlight")
-        highlight.Adornee = char
-        highlight.FillColor = Color3.fromRGB(180, 0, 0)
-        highlight.FillTransparency = 0.5
-        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-        highlight.Parent = char
-        RunService.RenderStepped:Connect(function() 
-            highlight.Enabled = Config.EspEnabled and char:FindFirstChild("HumanoidRootPart") ~= nil
-        end)
-    end)
-end
-for _, p in pairs(Players:GetPlayers()) do addEsp(p) end
-Players.PlayerAdded:Connect(addEsp)
+----------------------------------------------------------------
+-- 2. COMBINED AIMING AND TARGETING LOGIC
+----------------------------------------------------------------
 
--- Hardware Independent Execution Engine (Native Tool Activation Method)
-local isFiring = false
+local function getClosestEnemy()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
 
-RunService.RenderStepped:Connect(function()
-    local centerScreen = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-    FovCircle.Position = centerScreen
-    FovCircle.Radius = Config.FovRadius * 4
-    
-    -- Handle Aimbot Look Tracking
-    if Config.AimbotEnabled then
-        local target = getClosestTarget()
-        if target then 
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Head.Position) 
-        end
-    end
-    
-    -- Handle Code-Injected Auto Shoot
-    if Config.AutoShootEnabled and not isFiring and Mouse.Target then
-        local hitObject = Mouse.Target
-        local character = hitObject:FindFirstAncestorOfClass("Model")
-        
-        if character and character:FindFirstChild("Humanoid") and character ~= LocalPlayer.Character then
-            local targetPlayer = Players:GetPlayerFromCharacter(character)
-            if targetPlayer and character:FindFirstChild("Head") and isVisible(character) then
-                -- Locate currently equipped gun tool inside your avatar character
-                local equippedTool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Team ~= LocalPlayer.Team then
+            local char = player.Character
+            local target = char and char:FindFirstChild(Config.TargetPart)
+            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+
+            if target and humanoid and humanoid.Health > 0 then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(target.Position)
                 
-                if equippedTool then
-                    isFiring = true
+                if onScreen then
+                    local mousePos = Camera.ViewportSize / 2
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
                     
-                    -- Trigger tool action directly via script injection bypass
-                    equippedTool:Activate()
-                    
-                    -- Use alternative click simulation block as a backup redundancy
-                    local virtualUser = game:GetService("VirtualUser")
-                    virtualUser:ClickButton1(Vector2.new(centerScreen.X, centerScreen.Y))
-                    
-                    task.wait(0.12) -- Prevent engine rate-limit lockouts
-                    isFiring = false
+                    if distance < shortestDistance and distance <= Config.MaxDistance then
+                        shortestDistance = distance
+                        closestPlayer = player
+                    end
                 end
             end
+        end
+    end
+    return closestPlayer
+end
+
+-- Central Processing Loop running on RenderStepped
+RunService.RenderStepped:Connect(function()
+    local targetEnemy = getClosestEnemy()
+    
+    if not targetEnemy or not targetEnemy.Character then return end
+    local targetPartInstance = targetEnemy.Character:FindFirstChild(Config.TargetPart)
+    if not targetPartInstance then return end
+
+    -- Execution Path A: Aimbot Visual Tracking
+    if Config.Aimbot then
+        local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPartInstance.Position)
+        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 1 / Config.Smoothness)
+    end
+
+    -- Execution Path B: Auto-Shoot Context Check
+    if Config.AutoShoot then
+        local centerRay = Camera:ViewportPointToRay(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+        raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+        
+        local raycastResult = Workspace:Raycast(centerRay.Origin, centerRay.Direction * Config.MaxDistance, raycastParams)
+        
+        -- Confirms line-of-sight intersects the specific player model locked by tracking
+        if raycastResult and raycastResult.Instance:IsDescendantOf(targetEnemy.Character) then
+            VirtualInputManager:Button1Down(Vector3.new(0, 0, 0))
+            task.wait(0.02)
+            VirtualInputManager:Button1Up(Vector3.new(0, 0, 0))
         end
     end
 end)
