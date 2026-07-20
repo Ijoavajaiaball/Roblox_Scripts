@@ -12,9 +12,12 @@ end
 -- State Configuration
 local CombatConfig = {
     AutoBlockEnabled = false,
-    DetectionRadius = 13, -- Optimal close-quarters combat distance (in studs)
-    BlockHoldDuration = 0.4 -- Seconds to maintain guard per triggered interaction
+    DetectionRadius = 16, -- Optimal close-quarters combat distance (in studs)
+    SafetyPadding = 0.2,   -- Seconds to hold block after an attack ends to prevent flickering
 }
+
+local isGuarding = false
+local lastBlockTime = 0
 
 -- UI Root Container
 local ScreenGui = Instance.new("ScreenGui")
@@ -26,7 +29,7 @@ ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 240, 0, 140)
 MainFrame.Position = UDim2.new(0.5, -120, 0.4, -70)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 4, 4) -- Dark red theme
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 4, 4) -- Dark red-tinted black theme
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -109,7 +112,7 @@ local function createToggle(text, default, callback)
     end)
 end
 
--- Mobile Panel Toggle Button
+-- Mobile Minimize/Maximize UI Button
 local MenuToggleBtn = Instance.new("TextButton")
 MenuToggleBtn.Size = UDim2.new(0, 130, 0, 26)
 MenuToggleBtn.Position = UDim2.new(0.5, -65, 0, 5)
@@ -129,99 +132,126 @@ MenuToggleBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- Initialize UI Toggle
+-- Initialize Toggle UI Control
 createToggle("Insta-Trigger Block", false, function(state)
     CombatConfig.AutoBlockEnabled = state
 end)
 
 -- ==========================================================
--- INSTANT REACTION TRIGGERBOT ENGINE (CROSS-PLATFORM BIND)
+-- ENGINE: ACTION-PRIORITY COMBAT TRIGGERBOT
 -- ==========================================================
 
-local isGuardActive = false
-local blockReleaseThread = nil
-
--- Forces immediate engine-level action engagement
+-- Engine key-binding handlers
 local function engageGuard()
-    if not isGuardActive then
-        isGuardActive = true
+    if not isGuarding then
+        isGuarding = true
+        lastBlockTime = os.clock()
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
     end
-    
-    -- Auto-refresh safety window thread
-    if blockReleaseThread then task.cancel(blockReleaseThread) end
-    blockReleaseThread = task.spawn(function()
-        task.wait(CombatConfig.BlockHoldDuration)
-        if isGuardActive then
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
-            isGuardActive = false
-        end
-    end)
 end
 
--- Connection routine for monitoring active threats 
-local function hookThreatTracking(character)
-    local humanoid = character:WaitForChild("Humanoid", 5)
-    if not humanoid then return end
-    
-    -- Event Hook: Fires immediately when an enemy starts any animation action string
-    humanoid.AnimationPlayed:Connect(function()
-        if not CombatConfig.AutoBlockEnabled then return end
-        
-        local myChar = LocalPlayer.Character
-        local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-        local enemyRoot = character:FindFirstChild("HumanoidRootPart")
-        
-        if myRoot and enemyRoot then
-            -- High-speed proximity evaluation
-            local distance = (myRoot.Position - enemyRoot.Position).Magnitude
-            if distance <= CombatConfig.DetectionRadius then
-                engageGuard()
-            end
-        end
-    end)
-end
-
--- Initialize tracking logic across the current session environment
-for _, player in ipairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer and player.Character then
-        task.spawn(hookThreatTracking, player.Character)
+local function releaseGuard()
+    if isGuarding then
+        isGuarding = false
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
     end
-    player.CharacterAdded:Connect(function(char)
-        if player ~= LocalPlayer then
-            task.spawn(hookThreatTracking, char)
-        end
-    end)
 end
 
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function(char)
-        task.spawn(hookThreatTracking, char)
-    end)
-end)
-
--- Backup Engine: Monitors raw property status tags as a secondary fail-safe
-RunService.Heartbeat:Connect(function()
-    if not CombatConfig.AutoBlockEnabled then return end
+-- Character distance & health validator
+local function isTargetValid(character)
+    if not character or character == LocalPlayer.Character then return false end
     
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local targetRoot = character:FindFirstChild("HumanoidRootPart")
     local myChar = LocalPlayer.Character
     local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-    if not myRoot then return end
     
+    if humanoid and humanoid.Health > 0 and targetRoot and myRoot then
+        local distance = (targetRoot.Position - myRoot.Position).Magnitude
+        return distance <= CombatConfig.DetectionRadius
+    end
+    return false
+end
+
+-- Scans surrounding tracks for higher-level Action priorities (ignoring movement/idles)
+local function hasActiveThreats()
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local enemyChar = player.Character
-            -- Fast check if the game engine marks them in a combat attack state
-            if enemyChar:GetAttribute("Attacking") == true or enemyChar:GetAttribute("InCombo") == true then
-                local enemyRoot = enemyChar:FindFirstChild("HumanoidRootPart")
-                if enemyRoot then
-                    local distance = (myRoot.Position - enemyRoot.Position).Magnitude
-                    if distance <= CombatConfig.DetectionRadius then
-                        engageGuard()
-                        break
+        if player ~= LocalPlayer and player.Character and isTargetValid(player.Character) then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                for _, track in ipairs(humanoid:GetPlayingAnimationTracks()) do
+                    if track and track.Priority and track.Priority.Value >= Enum.AnimationPriority.Action.Value then
+                        return true
                     end
                 end
             end
         end
     end
+    return false
+end
+
+-- Direct event pipeline connection (bypasses frame delay bottlenecks)
+local function hookThreatTracking(character)
+    if character == LocalPlayer.Character then return end
+    
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    if not humanoid then return end
+    
+    humanoid.AnimationPlayed:Connect(function(track)
+        if not CombatConfig.AutoBlockEnabled or not isTargetValid(character) then return end
+        
+        -- Filter checks: ensures it only trips on combat skills, M1 strings, and dashes
+        if track and track.Priority and track.Priority.Value >= Enum.AnimationPriority.Action.Value then
+            engageGuard()
+            lastBlockTime = os.clock()
+        end
+    end)
+end
+
+-- Intelligent frame state monitoring thread (handles safety buffers)
+RunService.Heartbeat:Connect(function()
+    if not CombatConfig.AutoBlockEnabled then
+        if isGuarding then releaseGuard() end
+        return
+    end
+
+    local myChar = LocalPlayer.Character
+    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then
+        if isGuarding then releaseGuard() end
+        return
+    end
+    
+    if hasActiveThreats() then
+        engageGuard()
+        lastBlockTime = os.clock() -- Keeps shield open as long as threat framework is active
+    else
+        -- Prevents block spam/flickering by letting padding breathe before releasing
+        if isGuarding and (os.clock() - lastBlockTime >= CombatConfig.SafetyPadding) then
+            releaseGuard()
+        end
+    end
 end)
+
+-- Initialize dynamic platform collection structures
+local function initialize()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            task.spawn(hookThreatTracking, player.Character)
+        end
+        player.CharacterAdded:Connect(function(char)
+            if player ~= LocalPlayer then
+                task.spawn(hookThreatTracking, char)
+            end
+        end)
+    end
+    
+    Players.PlayerAdded:Connect(function(player)
+        player.CharacterAdded:Connect(function(char)
+            if player ~= LocalPlayer then
+                task.spawn(hookThreatTracking, char)
+            end
+        end)
+    end)
+end
+
+initialize()
