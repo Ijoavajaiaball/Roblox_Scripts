@@ -2,6 +2,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager") -- Added for auto-click simulation
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
@@ -338,6 +339,7 @@ for _, p in pairs(Players:GetPlayers()) do addEsp(p) end
 Players.PlayerAdded:Connect(addEsp)
 
 -- Frame Update Loop
+local isClicking = false -- Debounce logic to prevent overlapping click states
 RunService.RenderStepped:Connect(function()
     FovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
     FovCircle.Radius = Config.FovRadius * 4
@@ -345,7 +347,20 @@ RunService.RenderStepped:Connect(function()
     if Config.AimbotEnabled then
         local target = getClosestTarget()
         if target then 
+            -- 1. Precision Camera Tracking
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Head.Position) 
+            
+            -- 2. Fully Automatic Triggerbot Execution Block
+            if not isClicking then
+                isClicking = true
+                task.spawn(function()
+                    VirtualInputManager:Button1Down(Vector3.new(0, 0, 0))
+                    task.wait(0.02) -- Short hold delay optimized for high-tick execution
+                    VirtualInputManager:Button1Up(Vector3.new(0, 0, 0))
+                    task.wait(0.01) -- Brief reset cooldown interval
+                    isClicking = false
+                end)
+            end
         end
     end
 end)
