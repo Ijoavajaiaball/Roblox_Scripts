@@ -12,12 +12,16 @@ end
 -- State Configuration
 local CombatConfig = {
     AutoBlockEnabled = false,
-    DetectionRadius = 15,    -- Distance in studs to intercept attacks/dashes
-    SafetyPadding = 0.15     -- Extra hold window (seconds) to ensure full hitboxes are blocked
+    DetectionRadius = 32,        -- Expanded radius to catch fast front dashes before they hit
+    MeleeRadius = 16,            -- Tight radius for standard M1s and close-quarters combat skills
+    DashVelocityThreshold = 36,  -- Speed trigger to isolate front dashes
+    SafetyPadding = 0.22,         -- Hold window to ensure full skill frames are blocked
+    InputRateLimit = 0.08        -- Optimized gate time to prevent mobile input queue lag
 }
 
 local isGuarding = false
 local lastBlockTime = 0
+local lastInputToggleTime = 0
 
 -- UI Root Container
 local ScreenGui = Instance.new("ScreenGui")
@@ -42,7 +46,7 @@ MainBorder.Parent = MainFrame
 
 -- Panel Title
 local PanelTitle = Instance.new("TextLabel")
-PanelTitle.Text = "TITANIUM HUB — TSB FIXED"
+PanelTitle.Text = "TITANIUM HUB — TSB PARRY"
 PanelTitle.Size = UDim2.new(1, 0, 0, 30)
 PanelTitle.BackgroundColor3 = Color3.fromRGB(8, 2, 2)
 PanelTitle.TextColor3 = Color3.fromRGB(220, 20, 20)
@@ -138,25 +142,28 @@ createToggle("Insta-Trigger Block", false, function(state)
 end)
 
 -- ==========================================================
--- LOOP-FILTERED COMBAT TRIGGERBOT ENGINE
+-- LOOK-ALIGNED FRONT DASH TRIGGERBOT ENGINE
 -- ==========================================================
 
 local function engageGuard()
-    if not isGuarding then
+    local now = os.clock()
+    if not isGuarding and (now - lastInputToggleTime >= CombatConfig.InputRateLimit) then
         isGuarding = true
-        lastBlockTime = os.clock()
+        lastBlockTime = now
+        lastInputToggleTime = now
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
     end
 end
 
 local function releaseGuard()
-    if isGuarding then
+    local now = os.clock()
+    if isGuarding and (now - lastInputToggleTime >= CombatConfig.InputRateLimit) then
         isGuarding = false
+        lastInputToggleTime = now
         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
     end
 end
 
--- Validate distance, presence, and life states
 local function isTargetValid(character)
     if not character or character == LocalPlayer.Character then return false end
     
@@ -172,17 +179,45 @@ local function isTargetValid(character)
     return false
 end
 
--- Scan currently executing tracks specifically for unlooped combat actions
 local function hasActiveThreats()
+    local myChar = LocalPlayer.Character
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return false end
+
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and isTargetValid(player.Character) then
-            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                for _, track in ipairs(humanoid:GetPlayingAnimationTracks()) do
-                    -- CRITICAL FILTER: Attacks/Front-Dashes are NEVER looped.
-                    -- Walking, running, and idles are ALWAYS looped (ignores them entirely).
-                    if track.Looped == false and track.Priority.Value >= Enum.AnimationPriority.Action.Value then
+            local enemyChar = player.Character
+            local enemyRoot = enemyChar:FindFirstChild("HumanoidRootPart")
+            local humanoid = enemyChar:FindFirstChildOfClass("Humanoid")
+            
+            if enemyRoot and humanoid then
+                local distance = (myRoot.Position - enemyRoot.Position).Magnitude
+                local enemyVelocity = enemyRoot.AssemblyLinearVelocity
+                local velocityHorizontal = Vector3.new(enemyVelocity.X, 0, enemyVelocity.Z)
+                local absoluteEnemySpeed = velocityHorizontal.Magnitude
+                
+                -- 1. ADVANCED FRONT-DASH FILTER ENGINE
+                if absoluteEnemySpeed >= CombatConfig.DashVelocityThreshold and absoluteEnemySpeed < 140 then
+                    local enemyLookHorizontal = Vector3.new(enemyRoot.CFrame.LookVector.X, 0, enemyRoot.CFrame.LookVector.Z).Unit
+                    local movementAlignment = velocityHorizontal.Unit:Dot(enemyLookHorizontal)
+                    
+                    local toMeHorizontal = Vector3.new(myRoot.Position.X - enemyRoot.Position.X, 0, myRoot.Position.Z - enemyRoot.Position.Z).Unit
+                    local headingTowardsMe = velocityHorizontal.Unit:Dot(toMeHorizontal)
+                    
+                    -- Alignment checks:
+                    -- movementAlignment > 0.75 targets movements in their facing direction (Front Dash)
+                    -- headingTowardsMe > 0.6 ensures that front dash is aimed directly at your torso
+                    if movementAlignment > 0.75 and headingTowardsMe > 0.6 then
                         return true
+                    end
+                end
+                
+                -- 2. CLOSE-QUARTERS ATTACK TRACKING (M1 Strings & Skills)
+                if distance <= CombatConfig.MeleeRadius then
+                    for _, track in ipairs(humanoid:GetPlayingAnimationTracks()) do
+                        if track.Looped == false and track.Priority.Value >= Enum.AnimationPriority.Action.Value then
+                            return true
+                        end
                     end
                 end
             end
@@ -191,7 +226,7 @@ local function hasActiveThreats()
     return false
 end
 
--- Direct Event Connection: Fires on the exact frame an animation replicates
+-- Frame-1 Execution pipeline on raw M1 combo registration
 local function hookThreatTracking(character)
     if character == LocalPlayer.Character then return end
     
@@ -201,15 +236,22 @@ local function hookThreatTracking(character)
     humanoid.AnimationPlayed:Connect(function(track)
         if not CombatConfig.AutoBlockEnabled or not isTargetValid(character) then return end
         
-        -- Instant reaction execution if a non-looped action priority (Attack/Dash) registers
-        if track.Looped == false and track.Priority.Value >= Enum.AnimationPriority.Action.Value then
-            engageGuard()
-            lastBlockTime = os.clock()
+        local myChar = LocalPlayer.Character
+        local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        local enemyRoot = character:FindFirstChild("HumanoidRootPart")
+        
+        if myRoot and enemyRoot then
+            local distance = (myRoot.Position - enemyRoot.Position).Magnitude
+            -- Only auto-blocks unlooped physical animations within true strike distance
+            if distance <= CombatConfig.MeleeRadius and track.Looped == false and track.Priority.Value >= Enum.AnimationPriority.Action.Value then
+                engageGuard()
+                lastBlockTime = os.clock()
+            end
         end
     end)
 end
 
--- Precision state resolution and guard-drop mitigation loop
+-- Main Heartbeat Synchronization Thread
 RunService.Heartbeat:Connect(function()
     if not CombatConfig.AutoBlockEnabled then
         if isGuarding then releaseGuard() end
@@ -224,16 +266,16 @@ RunService.Heartbeat:Connect(function()
     
     if hasActiveThreats() then
         engageGuard()
-        lastBlockTime = os.clock() -- Holds block active continuously while the unlooped action track runs
+        lastBlockTime = os.clock()
     else
-        -- Safely drop guard only after the non-looped attack completes + tiny padding window clears
+        -- Drops guard after threats drop and the cushion padding expires
         if isGuarding and (os.clock() - lastBlockTime >= CombatConfig.SafetyPadding) then
             releaseGuard()
         end
     end
 end)
 
--- Initialize listeners across player runtime lists
+-- Initialization structures across live instance profiles
 local function initialize()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
