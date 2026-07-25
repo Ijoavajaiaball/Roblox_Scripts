@@ -1,5 +1,5 @@
--- Vision Hub/main.lua
--- sexy script by github.com/orialdev
+-- Titanium Hub/main.lua
+-- script by xen
 -- please give credit if you use anything from my code
 
 local CoreGui = game:GetService("CoreGui")
@@ -12,18 +12,18 @@ local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/KevinS
 
 local queue_on_teleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport) or function(...) end
 
-if getgenv().VisionHub_Connections then
-    for i, conn in pairs(getgenv().VisionHub_Connections) do
+if getgenv().TitaniumHub_Connections then
+    for i, conn in pairs(getgenv().TitaniumHub_Connections) do
         if conn then
             pcall(function() conn:Disconnect() end)
         end
-        getgenv().VisionHub_Connections[i] = nil
+        getgenv().TitaniumHub_Connections[i] = nil
     end
 end
-getgenv().VisionHub_Connections = {}
+getgenv().TitaniumHub_Connections = {}
 
 for _, gui in ipairs(CoreGui:GetChildren()) do
-    if gui.Name == "Vision Hub" or gui.Name == "VisionESP" or string.match(gui.Name, "^VisionBtn_") or gui.Name == "VisionTimerGUI" then
+    if gui.Name == "Titanium Hub" or gui.Name == "TitaniumESP" or string.match(gui.Name, "^TitaniumBtn_") or gui.Name == "TitaniumTimerGUI" then
         gui:Destroy()
     end
 end
@@ -31,7 +31,7 @@ end
 for _, player in ipairs(Players:GetPlayers()) do
     if player.Character then
         local artifacts = {
-            player.Character:FindFirstChild("VisionHighlight"),
+            player.Character:FindFirstChild("TitaniumHighlight"),
             player.Character:FindFirstChild("Head") and player.Character.Head:FindFirstChild("NameESP")
         }
         for _, artifact in ipairs(artifacts) do
@@ -41,7 +41,7 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 
 for _, obj in ipairs(Workspace:GetDescendants()) do
-    if obj.Name == "VisionGunHighlight" or obj.Name == "VisionGunLabel" then
+    if obj.Name == "TitaniumGunHighlight" or obj.Name == "TitaniumGunLabel" then
         obj:Destroy()
     end
 end
@@ -56,7 +56,7 @@ if getgenv().FPDH then
 end
 
 local function AddConnection(conn)
-    local connections = getgenv().VisionHub_Connections
+    local connections = getgenv().TitaniumHub_Connections
     for i = #connections, 1, -1 do
         local c = connections[i]
         if not c or not c.Connected then
@@ -1100,12 +1100,12 @@ do
                     Content = "A gun has been dropped in the map.",
                     Icon = "crosshair",
                     Duration = 5,
-                    TitleColor = Color3.fromHex("#00BFFF"),
-                    ContentColor = Color3.fromHex("#E6F7FF"),
-                    IconColor = Color3.fromHex("#89F7FF"),
-                    BackgroundColor = Color3.fromHex("#030407"),
-                    ProgressBarColor = Color3.fromHex("#00BFFF"),
-                    CloseButtonColor = Color3.fromHex("#00BFFF"),
+                    TitleColor = Color3.fromHex("#FF3333"),
+                    ContentColor = Color3.fromHex("#FFE6E6"),
+                    IconColor = Color3.fromHex("#FF8080"),
+                    BackgroundColor = Color3.fromHex("#070303"),
+                    ProgressBarColor = Color3.fromHex("#FF3333"),
+                    CloseButtonColor = Color3.fromHex("#FF3333"),
                 })
             end
         end)
@@ -1240,7 +1240,7 @@ function Modules.ChatRoles()
     local mName = murderer and murderer.Name or "Unknown"
     local sName = sheriff and sheriff.Name or "Unknown"
     
-    local msg = "Vision Hub >> Murderer: " .. mName .. " | Sheriff: " .. sName
+    local msg = "Titanium Hub >> Murderer: " .. mName .. " | Sheriff: " .. sName
     
     if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
         local chan = TextChatService:FindFirstChild("TextChannels")
@@ -1286,7 +1286,7 @@ do
         end
 
         timerGui = Instance.new("ScreenGui")
-        timerGui.Name = "VisionTimerGUI"
+        timerGui.Name = "TitaniumTimerGUI"
         timerGui.ResetOnSpawn = false
         timerGui.IgnoreGuiInset = true
         timerGui.Parent = CoreGui
@@ -1298,7 +1298,7 @@ do
         label.BackgroundTransparency = 1
         label.Font = Enum.Font.GothamBold
         label.TextScaled = true
-        label.TextColor3 = Color3.fromHex("#E6F7FF")
+        label.TextColor3 = Color3.fromHex("#FFE6E6")
         label.TextStrokeColor3 = Color3.fromHex("#000000")
         label.TextStrokeTransparency = 0
         label.Text = "Loading..."
@@ -1313,7 +1313,7 @@ do
                 if ok then
                     label.Text = secondsToMinutes(timeLeft)
                 else
-                    label.Text = "â€”"
+                    label.Text = "—"
                 end
 
                 task.wait(0.5)
@@ -1349,8 +1349,8 @@ do
                                 Duration = 8,
                                 TitleColor = Color3.fromRGB(255, 0, 0),
                                 IconColor = Color3.fromRGB(255, 255, 255),
-                                BackgroundColor = Color3.fromHex("#030407"),
-                                CloseButtonColor = Color3.fromHex("#00BFFF"),
+                                BackgroundColor = Color3.fromHex("#070303"),
+                                CloseButtonColor = Color3.fromHex("#FF3333"),
                              })
                          end)
                     end
@@ -1368,8 +1368,8 @@ do
                                 Duration = 8,
                                 TitleColor = Color3.fromRGB(0, 0, 255),
                                 IconColor = Color3.fromRGB(255, 255, 255),
-                                BackgroundColor = Color3.fromHex("#030407"),
-                                CloseButtonColor = Color3.fromHex("#00BFFF"),
+                                BackgroundColor = Color3.fromHex("#070303"),
+                                CloseButtonColor = Color3.fromHex("#FF3333"),
                              })
                          end)
                     end
@@ -1397,7 +1397,7 @@ do
         if not settings.Enabled then return end
 
         local screenGui = Instance.new("ScreenGui")
-        screenGui.Name = "VisionBtn_" .. id
+        screenGui.Name = "TitaniumBtn_" .. id
         screenGui.Parent = CoreGui
         screenGui.ResetOnSpawn = false
         screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -1419,7 +1419,7 @@ do
         else
             btn = Instance.new("ImageButton")
             btn.Image = settings.Icon or ""
-            btn.ImageColor3 = settings.ImageColor or Color3.fromHex("#E6F7FF")
+            btn.ImageColor3 = settings.ImageColor or Color3.fromHex("#FFE6E6")
         end
 
         btn.Name = "ActionBtn"
@@ -1428,7 +1428,7 @@ do
         if initialY > 0.8 then initialY = 0.45 end
         btn.Position = UDim2.new(0.9, -20, initialY, 0)
         
-        btn.BackgroundColor3 = Color3.fromHex("#09202B")
+        btn.BackgroundColor3 = Color3.fromHex("#2B0909")
         btn.BackgroundTransparency = 0.3
         btn.AutoButtonColor = true
         btn.Parent = screenGui
@@ -1438,7 +1438,7 @@ do
         uiCorner.Parent = btn
 
         local stroke = Instance.new("UIStroke")
-        stroke.Color = Color3.fromHex("#00BFFF")
+        stroke.Color = Color3.fromHex("#FF3333")
         stroke.Thickness = 2.5
         stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         stroke.Parent = btn
@@ -1499,34 +1499,34 @@ end
 WindUI:AddTheme({
     Name = "Default",
     
-    Accent = Color3.fromHex("#00BFFF"),
-    Dialog = Color3.fromHex("#071021"),
-    Outline = Color3.fromHex("#BFEFFF"),
-    Text = Color3.fromHex("#E6F7FF"),
-    Placeholder = Color3.fromHex("#6F8892"),
-    Background = Color3.fromHex("#030407"),
-    Button = Color3.fromHex("#09202B"),
-    Icon = Color3.fromHex("#89F7FF")
+    Accent = Color3.fromHex("#FF3333"),
+    Dialog = Color3.fromHex("#150707"),
+    Outline = Color3.fromHex("#FF8080"),
+    Text = Color3.fromHex("#FFE6E6"),
+    Placeholder = Color3.fromHex("#926F6F"),
+    Background = Color3.fromHex("#070303"),
+    Button = Color3.fromHex("#2B0909"),
+    Icon = Color3.fromHex("#FF8989")
 })
 
 local Window = WindUI:CreateWindow({
-    Title = "Vision Hub",
-    Author = "by orialdev",
-    Folder = "VisionHub",
+    Title = "Titanium Hub",
+    Author = "by xen",
+    Folder = "TitaniumHub",
     Theme = "Default",
     Icon = "https://raw.githubusercontent.com/orialdev2/Vision-Hub/refs/heads/main/Vision_Logo1.png",
     IconSize = 50,
     NewElements = true,
     OpenButton = {
-        Title = "Vision Hub",
+        Title = "Titanium Hub",
         CornerRadius = UDim.new(1, 0),
         StrokeThickness = 3,
         Enabled = true,
         Draggable = true,
         OnlyMobile = true,
         Color = ColorSequence.new(
-            Color3.fromHex("#00BFFF"),
-            Color3.fromHex("#89F7FF")
+            Color3.fromHex("#FF0000"),
+            Color3.fromHex("#FF8080")
         )
     }
 })
@@ -1580,8 +1580,8 @@ local Settings = Window:Tab({
 
 
 Main:Paragraph({
-    Title = "Welcome to Vision Hub!",
-    Desc = "Thanks for using Vision Hub, Join our Discord for support and updates.",
+    Title = "Welcome to Titanium Hub!",
+    Desc = "Thanks for using Titanium Hub, Join our Discord for support and updates.",
     Thumbnail = "https://raw.githubusercontent.com/orialdev2/Vision-Hub/refs/heads/main/Vision.png",
     ThumbnailSize = 160,
             Buttons = {
@@ -1590,7 +1590,7 @@ Main:Paragraph({
                 Icon = "geist:logo-discord",
                 Callback = function()
                     if setclipboard then
-                        setclipboard("https://discord.gg/TZHgrMUKGJ")
+                        setclipboard("https://discord.gg/qu3yVAbHt")
                         Window:Dialog({
                             Title = "Discord Link Copied",
                             Icon = "geist:logo-discord",
@@ -1611,7 +1611,7 @@ Main:Space()
 Main:Code({
     Title = "Changelog 1.8.0",
     Code = [[
-[VisionHub]
+[TitaniumHub]
 + 1.8.0 released!
 
 + Fully rewritten codebase
@@ -1858,10 +1858,10 @@ do
 end
 
 do
-    local ESP_Folder = CoreGui:FindFirstChild("VisionESP")
+    local ESP_Folder = CoreGui:FindFirstChild("TitaniumESP")
     if not ESP_Folder then
         ESP_Folder = Instance.new("Folder")
-        ESP_Folder.Name = "VisionESP"
+        ESP_Folder.Name = "TitaniumESP"
         ESP_Folder.Parent = CoreGui
     end
 
@@ -1913,22 +1913,22 @@ do
 
                 local char = plr.Character
                 if Modules.Config.EspPlayers then
-                    if not char:FindFirstChild("VisionHighlight") then
+                    if not char:FindFirstChild("TitaniumHighlight") then
                         local hl = Instance.new("Highlight")
-                        hl.Name = "VisionHighlight"
+                        hl.Name = "TitaniumHighlight"
                         hl.FillTransparency = 0.85
                         hl.OutlineTransparency = 0
                         hl.Parent = char
                     end
-                    local hl = char:FindFirstChild("VisionHighlight")
+                    local hl = char:FindFirstChild("TitaniumHighlight")
                     if hl then
                         hl.FillColor = espColor
                         hl.OutlineColor = espColor
                         hl.Enabled = true
                     end
                 else
-                    if char:FindFirstChild("VisionHighlight") then
-                        char.VisionHighlight:Destroy()
+                    if char:FindFirstChild("TitaniumHighlight") then
+                        char.TitaniumHighlight:Destroy()
                     end
                 end
 
@@ -1978,7 +1978,7 @@ do
                 end
                 for _, p in ipairs(Players:GetPlayers()) do
                     if p.Character then
-                        if p.Character:FindFirstChild("VisionHighlight") then p.Character.VisionHighlight:Destroy() end
+                        if p.Character:FindFirstChild("TitaniumHighlight") then p.Character.TitaniumHighlight:Destroy() end
                         if p.Character:FindFirstChild("Head") and p.Character.Head:FindFirstChild("NameESP") then p.Character.Head.NameESP:Destroy() end
                     end
                 end
@@ -1991,8 +1991,8 @@ do
     local function RemoveGunESP()
         for _, obj in ipairs(Workspace:GetDescendants()) do
             if obj.Name == "GunDrop" then
-                if obj:FindFirstChild("VisionGunHighlight") then obj.VisionGunHighlight:Destroy() end
-                if obj:FindFirstChild("VisionGunLabel") then obj.VisionGunLabel:Destroy() end
+                if obj:FindFirstChild("TitaniumGunHighlight") then obj.TitaniumGunHighlight:Destroy() end
+                if obj:FindFirstChild("TitaniumGunLabel") then obj.TitaniumGunLabel:Destroy() end
             end
         end
     end
@@ -2000,11 +2000,11 @@ do
     local function AddGunESP(gun)
         if not gun or not gun:IsA("BasePart") then return end
         
-        if gun:FindFirstChild("VisionGunHighlight") then gun.VisionGunHighlight:Destroy() end
-        if gun:FindFirstChild("VisionGunLabel") then gun.VisionGunLabel:Destroy() end
+        if gun:FindFirstChild("TitaniumGunHighlight") then gun.TitaniumGunHighlight:Destroy() end
+        if gun:FindFirstChild("TitaniumGunLabel") then gun.TitaniumGunLabel:Destroy() end
 
         local hl = Instance.new("Highlight")
-        hl.Name = "VisionGunHighlight"
+        hl.Name = "TitaniumGunHighlight"
         hl.Adornee = gun
         hl.FillColor = Color3.fromRGB(0, 255, 255)
         hl.OutlineColor = Color3.fromRGB(255, 255, 255)
@@ -2013,7 +2013,7 @@ do
         hl.Parent = gun
 
         local bg = Instance.new("BillboardGui")
-        bg.Name = "VisionGunLabel"
+        bg.Name = "TitaniumGunLabel"
         bg.Adornee = gun
         bg.Size = UDim2.new(0, 150, 0, 50)
         bg.StudsOffset = Vector3.new(0, 2, 0)
@@ -2619,12 +2619,12 @@ do
                 Content="Configuration saved!",
                 Icon = "save",
                 Duration = 5,
-                TitleColor = Color3.fromHex("#00BFFF"),
-                ContentColor = Color3.fromHex("#E6F7FF"),
-                IconColor = Color3.fromHex("#89F7FF"),
-                BackgroundColor = Color3.fromHex("#030407"),
-                ProgressBarColor = Color3.fromHex("#00BFFF"),
-                CloseButtonColor = Color3.fromHex("#00BFFF"),
+                TitleColor = Color3.fromHex("#FF3333"),
+                ContentColor = Color3.fromHex("#FFE6E6"),
+                IconColor = Color3.fromHex("#FF8080"),
+                BackgroundColor = Color3.fromHex("#070303"),
+                ProgressBarColor = Color3.fromHex("#FF3333"),
+                CloseButtonColor = Color3.fromHex("#FF3333"),
             })
         end
     })
@@ -2640,12 +2640,12 @@ do
                 Content="Configuration loaded!",
                 Icon = "loader",
                 Duration = 5,
-                TitleColor = Color3.fromHex("#00BFFF"),
-                ContentColor = Color3.fromHex("#E6F7FF"),
-                IconColor = Color3.fromHex("#89F7FF"),
-                BackgroundColor = Color3.fromHex("#030407"),
-                ProgressBarColor = Color3.fromHex("#00BFFF"),
-                CloseButtonColor = Color3.fromHex("#00BFFF"),
+                TitleColor = Color3.fromHex("#FF3333"),
+                ContentColor = Color3.fromHex("#FFE6E6"),
+                IconColor = Color3.fromHex("#FF8080"),
+                BackgroundColor = Color3.fromHex("#070303"),
+                ProgressBarColor = Color3.fromHex("#FF3333"),
+                CloseButtonColor = Color3.fromHex("#FF3333"),
             })
         end
     })
