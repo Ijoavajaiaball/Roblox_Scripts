@@ -310,13 +310,13 @@ function Library:remove_table_value(__table, table_value)
 end
 
 function Library:create_ui()
-    local old_Xinve = CoreGui:FindFirstChild('Xinve')
-    if old_Xinve then Debris:AddItem(old_Xinve, 0) end
-    local Xinve = Instance.new('ScreenGui')
+    local old_tesen🤍 = CoreGui:FindFirstChild('Xinve')
+    if old_tesen🤍 then Debris:AddItem(old_Xinve, 0) end
+    local tesen🤍 = Instance.new('ScreenGui')
     Xinve.ResetOnSpawn = false
-    Xinve.Name = 'tesen🤍'
-    Xinve.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    Xinve.Parent = CoreGui
+    tesen🤍.Name = 'tesen🤍'
+    tesen🤍.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    tesen🤍.Parent = CoreGui
     local Container = Instance.new('Frame')
     Container.ClipsDescendants = true
     Container.BorderColor3 = Color3.fromRGB(0, 0, 0)
