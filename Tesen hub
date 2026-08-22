@@ -314,7 +314,7 @@ function Library:create_ui()
     if old_Xinve then Debris:AddItem(old_Xinve, 0) end
     local Xinve = Instance.new('ScreenGui')
     Xinve.ResetOnSpawn = false
-    Xinve.Name = 'Xinve'
+    Xinve.Name = 'tesen🤍'
     Xinve.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     Xinve.Parent = CoreGui
     local Container = Instance.new('Frame')
